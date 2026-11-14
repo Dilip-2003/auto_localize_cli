@@ -19,105 +19,95 @@
 ---
 
 ## 📖 Table of Contents
-1. [The Problem vs. The Solution](#-the-problem-vs-the-solution)
-2. [Architectural Overview](#-architectural-overview)
-3. [✨ Key Features in Depth](#-key-features-in-depth)
-4. [🌍 International & Custom Base Locale Support (`--locale`)](#-international--custom-base-locale-support---locale)
-5. [🧠 7-Step Smart Key Generation Algorithm](#-7-step-smart-key-generation-algorithm)
-6. [🛡️ The 18 Compiler & Architecture Edge Cases Solved](#-the-18-compiler--architecture-edge-cases-solved)
-7. [🚀 Quick Start Guide](#-quick-start-guide)
-8. [🔄 Reactive Runtime Locale Switching](#-reactive-runtime-locale-switching)
-9. [🏗️ Advanced Workflows: Cubits, Blocs & Services](#-advanced-workflows-cubits-blocs--services)
-10. [🛠️ CLI Command Reference](#-cli-command-reference)
-11. [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
-12. [🤝 Contributing & License](#-contributing--license)
+1. [Section 1: Overview & Why `auto_localize_cli` Exists](#section-1-overview--why-auto_localize_cli-exists)
+2. [Section 2: Deep Dive into the `lib/core/` Architecture & Why It Must Be Maintained](#section-2-deep-dive-into-the-libcore-architecture--why-it-must-be-maintained)
+   - [A. `lib/core/localization_helper.dart` (The Context-Less Engine)](#a-libcorelocalization_helperdart-the-context-less-engine)
+   - [B. `lib/core/app_strings.dart` (Centralized Non-UI & Business Logic Strings)](#b-libcoreapp_stringsdart-centralized-non-ui--business-logic-strings)
+3. [Section 3: Using in Existing / Partially Localized Projects & Folder Structure Guide](#section-3-using-in-existing--partially-localized-projects--folder-structure-guide)
+   - [A. Mandatory vs. Configurable Folder Structure](#a-mandatory-vs-configurable-folder-structure)
+   - [B. Brownfield Integration & Existing Project Scenarios](#b-brownfield-integration--existing-project-scenarios)
+4. [Section 4: Custom Default Base Locale (`--locale` / `-l`) & International Support](#section-4-custom-default-base-locale---locale---l--international-support)
+5. [Section 5: 7-Step Smart Key Generation Algorithm](#section-5-7-step-smart-key-generation-algorithm)
+6. [Section 6: The 18 Compiler & Architecture Edge Cases Solved](#section-6-the-18-compiler--architecture-edge-cases-solved)
+7. [Section 7: Quick Start Guide (Step-by-Step)](#section-7-quick-start-guide-step-by-step)
+8. [Section 8: Architectural Diagram, FAQ, Contributing & License](#section-8-architectural-diagram-faq-contributing--license)
 
 ---
 
-## 🎯 The Problem vs. The Solution
+## Section 1: Overview & Why `auto_localize_cli` Exists
 
-### ❌ The 4 Legacy Localization Frustrations
-Localization is essential for building modern global Flutter apps, yet the traditional developer experience is fraught with friction:
+Localization is essential for building modern, international Flutter applications. However, both new (**greenfield**) and existing (**brownfield**) projects suffer from major developer experience roadblocks when attempting to internationalize.
 
-1. **Manual `.arb` File Maintenance (The Tedium Trap):**
-   Developers write UI widgets with strings like `Text("Please check your internet connection")`, then manually open `app_en.arb`, come up with a key name like `pleaseCheckYourInternetConnection`, paste the string, remember ICU syntax for placeholders (`{count}`), save, and return to their widget file. Multiply this by hundreds of strings across dozens of screens, and hours are wasted on repetitive clerical work.
+Traditionally, developers must choose between two suboptimal paths:
+1. **Official `flutter gen-l10n`:** Clean and compile-safe, but demands painful clerical work—manually copy-pasting strings into `.arb` files, inventing keys, formatting ICU syntax, and passing `BuildContext` into every layer of the app.
+2. **Runtime String Extensions (e.g. `"my_key".tr`):** Convenient in syntax, but introduces dangerous runtime bugs, offers zero compile-time safety, fails to autocomplete in IDEs, and frequently leads to missing keys appearing in production.
 
-2. **The `BuildContext` Dependency Barrier:**
-   Flutter's default localization system requires `AppLocalizations.of(context)!.someString`. This forces you to pass `BuildContext` into Cubits, Blocs, Controllers, ViewModels, Repositories, or models—violating clean architecture separation of concerns. Worse, accessing localization inside `MaterialApp(title: ...)` crashes with `StateError` because `NavigatorState` has not yet mounted.
+`auto_localize_cli` bridges this gap permanently. It operates directly on your Dart Abstract Syntax Tree (AST) using the official `package:analyzer`, giving you the ergonomics of a global accessor with the full compile-time safety and performance of Flutter's native localization system.
 
-3. **The Fragility of String Extensions (`"hello".tr`):**
-   Third-party libraries (e.g., GetX, Easy Localization) rely on runtime string key extensions (`"welcome_title".tr`). This provides **zero compile-time type safety**. A simple typo (`"welcom_title".tr`) compiles without error and renders raw missing keys in production. Furthermore, your IDE cannot autocomplete or refactor these string keys.
+### Detailed Comparison Table
 
-4. **Ancestor `const` Keyword Compilation Breakage:**
-   In Flutter, constant constructors (`const Column(...)`, `const Text(...)`, `const InputDecoration(...)`) require all arguments to be compile-time constants. When you replace `"Submit"` with localized text, the entire ancestor tree breaks with `Invalid constant value` compiler errors. Developers must manually walk up the widget tree, hunting down and deleting every invalid `const` keyword.
-
----
-
-### ✅ How `auto_localize_cli` Solves Everything
-`auto_localize_cli` is an AST (Abstract Syntax Tree) compiler automation tool powered by Dart's official `package:analyzer`:
-
-- 🚀 **Zero-Config Onboarding (`init`):** Scaffolds your complete localization architecture, configures dependencies, sets up `l10n.yaml`, scaffolds your primary ARB file (in English, Russian, Spanish, or any language you choose), and generates a context-less `l10n` global getter.
-- 🔍 **Automated AST String Extraction (`extract`):** Automatically scans your entire `lib/` directory, identifying hardcoded user-facing strings across widgets and core message classes.
-- 🪄 **Automatic Ancestor `const` Keyword Removal:** Deeply traverses the AST hierarchy from each extracted string upwards, removing invalidated `const` modifiers on parent widgets, lists, maps, and literals—completely preventing compile-time errors.
-- 🏷️ **Smart Deterministic `camelCase` Keys:** Converts raw human text into clean, idiomatic Dart getter keys using a 7-step natural language algorithm (with leading digit swaps, stopword pruning, reserved keyword protection, and collision fallback).
-- 🔤 **Full String Interpolation & Placeholders:** Extracts `$variable` and `${expr}` expressions into parameterized ARB templates with typed `@placeholders` and deduplicated method calls.
-- 🛡️ **100% Compile-Safe & Context-Less `l10n.<key>`:** Enjoy full IDE autocomplete, static typing, and instant jump-to-definition everywhere in your project without passing `BuildContext`.
+| Feature / Dimension | Manual `flutter gen-l10n` | String Extensions (`"key".tr`) | `auto_localize_cli` (`l10n.key`) |
+|:---|:---:|:---:|:---:|
+| **Manual `.arb` Copy-Pasting** | ❌ Required for every string | ❌ Required in JSON/Map | ✅ **100% Automated via AST CLI** |
+| **IDE Autocomplete & IntelliSense** | ✅ Supported (`AppLocalizations`) | ❌ Broken (plain strings) | ✅ **100% Supported (`l10n.<key>`)** |
+| **Compile-Time Type & Spelling Safety** | ✅ Yes | ❌ No (runtime failures/typos) | ✅ **100% Compile-Time Safe** |
+| **`BuildContext` Requirement** | ❌ Mandatory (`.of(context)!`) | ✅ Optional | ✅ **Zero `context` needed anywhere** |
+| **Works in BLoC, Cubit & Repositories** | ❌ Anti-pattern (passes context) | ⚠️ Runtime lookup | ✅ **Native architectural support** |
+| **Ancestor `const` Cleanup** | ❌ Manual tree surgery | ❌ Manual tree surgery | ✅ **Automated AST parent traversal** |
+| **String Interpolation (`$var`, `${expr}`)** | ❌ Manual ICU template setup | ⚠️ Runtime arg substitution | ✅ **Automated `@placeholders` generation** |
+| **Safe Before `MaterialApp` Mounts** | ❌ Crashes with `StateError` | ⚠️ Inconsistent | ✅ **Safe `lookupAppLocalizations` fallback** |
 
 ---
 
-## 🏛️ Architectural Overview
+## Section 2: Deep Dive into the `lib/core/` Architecture & Why It Must Be Maintained
 
-```mermaid
-flowchart TD
-    subgraph Phase1["Phase 1: dart run auto_localize_cli:init"]
-        A["Target Flutter Project"] --> B["Configure pubspec.yaml\n(flutter_localizations, intl, generate: true)"]
-        B --> C["Generate l10n.yaml\n(arb-dir, template-arb-file)"]
-        C --> D["Scaffold lib/l10n/app_<locale>.arb\n(en, ru, es, bn, etc.)"]
-        D --> E["Scaffold lib/core/localization_helper.dart\n(Global l10n getter, localeNotifier, changeAppLocale)"]
-        E --> F["Scaffold lib/core/app_strings.dart\n(Core error and message catalog)"]
-    end
+When you run `dart run auto_localize_cli:init`, the CLI scaffolds two critical architectural files inside `lib/core/`. Understanding why these files exist and how they function is vital for maintaining production apps using Clean Architecture, BLoC, Cubit, or MVVM.
 
-    subgraph Phase2["Phase 2: dart run auto_localize_cli:extract"]
-        G["Scan lib/ Dart Source Files"] --> H["Parse AST via package:analyzer"]
-        H --> I["LocalizationAstVisitor:\nDetect UI strings & track ancestor consts"]
-        I --> J["Smart Key Generator:\n7-Step camelCase & transliteration"]
-        J --> K["ArbManager:\nUpdate .arb catalog & deduplicate reverse map"]
-        K --> L["CodeRewriter:\nBottom-to-Top offset replacement + const removal"]
-        L --> M["Auto-Importer:\npart/part of aware imports into parent library"]
-        M --> N["Auto-Run flutter gen-l10n:\nCompile AppLocalizations"]
-    end
-```
+### A. `lib/core/localization_helper.dart` (The Context-Less Engine)
 
----
-
-## ✨ Key Features in Depth
-
-### 1. Context-Less Global `l10n` Getter
-Access your localized strings anywhere with zero boilerplate:
+This file houses the global accessor and reactive state controller for your application's localizations.
 
 ```dart
-// Inside any Widget build method
-Text(l10n.dashboardOverview)
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
-// Inside a Cubit / Bloc / ViewModel
-emit(OrdersError(l10n.failedToFetchOrderDetails));
+export '../l10n/app_localizations.dart';
 
-// Inside a Repository or Service
-throw NetworkException(l10n.networkError);
-```
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
-#### Safe Pre-Mount Fallback
-When `MaterialApp(title: l10n.appTitle)` executes, Flutter's `NavigatorState` has not yet mounted, meaning `globalNavigatorKey.currentContext` is `null`. `auto_localize_cli`'s generated `localization_helper.dart` automatically falls back to `lookupAppLocalizations(targetLocale)`:
+/// Live locale notifier for dynamic runtime locale switching without restart
+final ValueNotifier<Locale?> localeNotifier = ValueNotifier<Locale?>(null);
 
-```dart
+/// Changes the active application locale at runtime and notifies listeners.
+void changeAppLocale(Locale? locale) {
+  localeNotifier.value = locale;
+  _overrideLocale = locale;
+
+  void markDirty(Element el) {
+    el.markNeedsBuild();
+    el.visitChildren(markDirty);
+  }
+
+  final ctx = globalNavigatorKey.currentContext as Element?;
+  if (ctx != null) {
+    markDirty(ctx);
+  }
+}
+
+Locale? _overrideLocale;
+
+/// Context-less global getter for localized application strings.
 AppLocalizations get l10n {
   final context = globalNavigatorKey.currentContext;
   if (context != null) {
     final localizations = AppLocalizations.of(context);
-    if (localizations != null) return localizations;
+    if (localizations != null) {
+      return localizations;
+    }
   }
 
-  // Pre-mount safe fallback: prevents StateError crashes!
+  // Safe fallback before NavigatorState is mounted (e.g., inside MaterialApp.title)
   final targetLocale = _overrideLocale ?? localeNotifier.value ?? ui.PlatformDispatcher.instance.locale;
   for (final supported in AppLocalizations.supportedLocales) {
     if (supported.languageCode == targetLocale.languageCode) {
@@ -128,93 +118,151 @@ AppLocalizations get l10n {
 }
 ```
 
+#### Why it is architected this way:
+1. **`globalNavigatorKey` (`GlobalKey<NavigatorState>`):**
+   By attaching `globalNavigatorKey` to your `MaterialApp(navigatorKey: globalNavigatorKey)` or declarative router (like `GoRouter`), the getter `l10n` resolves `AppLocalizations.of(context)` using the Navigator's root element. This completely eliminates the need to pass `BuildContext` into BLoCs, Cubits, UseCases, Repositories, or Dio Interceptors.
+2. **The Pre-Mount Safe Fallback:**
+   When `MaterialApp(title: l10n.appTitle)` executes, Flutter evaluates the `title:` argument *before* `MaterialApp` mounts its internal `NavigatorState`. At that instant, `globalNavigatorKey.currentContext` is `null`. Instead of throwing a `StateError: Localization accessed before NavigatorState context was initialized`, `l10n` safely falls back to Flutter's generated `lookupAppLocalizations(...)` function using `PlatformDispatcher.instance.locale`.
+3. **Reactive Runtime Language Switching (`localeNotifier` & `changeAppLocale`):**
+   Wrapping `MaterialApp` with `ValueListenableBuilder<Locale?>(valueListenable: localeNotifier, ...)` allows instant locale changes. Furthermore, `changeAppLocale` recursively invalidates the Navigator route element tree (`el.markNeedsBuild()`), guaranteeing that all widgets—even those using `const` route constructors—immediately rebuild in the newly selected language without an app restart!
+
 ---
 
-### 2. Automatic Ancestor `const` Removal
-Consider this typical Flutter widget tree:
+### B. `lib/core/app_strings.dart` (Centralized Non-UI & Business Logic Strings)
+
+This file acts as the bridge between your business logic layer and the localization catalog.
+
+#### 1. Why the CLI Does NOT Blindly Extract Strings from Repositories/BLoCs/Services
+In backend, business logic, and data layer files, strings are constantly used for:
+- JSON map keys: `json['user_id']`, `response['access_token']`
+- API routes & endpoints: `dio.get('/api/v1/orders')`
+- HTTP headers: `{'Authorization': 'Bearer $token'}`
+- Database queries & Hive box names: `database.rawQuery("SELECT * FROM users")`
+- Backend enum/status comparisons: `if (status == "PENDING")`
+
+If an automated CLI blindly extracted every string literal in your project, it would catastrophicly corrupt your network requests and database queries! Therefore, `auto_localize_cli` restricts automatic AST extraction to **UI Widget contexts** (such as `Text`, `SelectableText`, `Tooltip`, `InputDecoration`, `Semantics`) and **the dedicated `AppStrings` class**.
+
+#### 2. When Developers Must Use `AppStrings`
+Whenever a user-facing string originates outside the UI layer, place it inside `lib/core/app_strings.dart`:
+- Dio / HTTP network error messages
+- BLoC / Cubit failure state messages
+- Form validator validation error messages
+- Push notification titles & bodies
+- Domain layer exception messages
+
+#### 3. How `auto_localize_cli` Transforms `AppStrings` Automatically
+
+````carousel
+```dart
+// 1. Standard Static Getters
+// BEFORE:
+static String get networkError => "Please check your internet connection";
+
+// AFTER:
+static String get networkError => l10n.pleaseCheckYourConnection;
+```
+<!-- slide -->
+```dart
+// 2. static const String Auto-Conversion to Dynamic Getters
+// BEFORE:
+static const String timeout = "Database connection timeout occurred";
+
+// AFTER:
+static String get timeout => l10n.databaseConnectionTimeoutOccurred;
+```
+<!-- slide -->
+```dart
+// 3. Parameterized Methods with Interpolation
+// BEFORE:
+static String welcomeUser(String name, int count) =>
+    "Welcome back $name, you have $count pending notifications";
+
+// AFTER:
+static String welcomeUser(String name, int count) =>
+    l10n.welcomeBackNameNotifications(name, count);
+```
+````
+
+> [!IMPORTANT]
+> **The `static const` Freezing Bug Solved:**
+> If a string in `AppStrings` were declared as `static const String timeout = ...` or `static final String timeout = ...`, the string would be evaluated only once in the initial language when first accessed. When the user changes languages at runtime, that field would stay permanently frozen in the previous language! `auto_localize_cli` detects `static const String` declarations in string classes and automatically rewrites them into dynamic getters (`static String get timeout => l10n...`), ensuring your Repositories and Cubits always receive the live, currently active language.
+
+---
+
+## Section 3: Using in Existing / Partially Localized Projects & Folder Structure Guide
+
+### A. Mandatory vs. Configurable Folder Structure
+
+```text
+your_flutter_project/
+├── l10n.yaml                         # [CONFIGURABLE] Custom arb-dir & template-arb-file supported!
+├── pubspec.yaml                      # Auto-configured with flutter_localizations & generate: true
+└── lib/
+    ├── core/                         # [MANDATORY FOLDER] Scaffolding root for localization core
+    │   ├── localization_helper.dart  # [MANDATORY] Context-less `l10n` getter & locale controller
+    │   └── app_strings.dart          # [MANDATORY] Centralized non-UI/error strings class
+    ├── l10n/                         # [CONFIGURABLE via l10n.yaml] Target .arb directory
+    │   ├── app_en.arb                # Template .arb file (or app_ru.arb, app_es.arb, etc.)
+    │   └── app_bn.arb                # Additional language .arb files
+    └── features/                     # Your existing feature/UI folders in any architecture
+        ├── home/
+        ├── auth/
+        └── orders/
+```
+
+| File / Folder Path | Status | Purpose & Customization Policy |
+|:---|:---:|:---|
+| `l10n.yaml` | **Configurable** | Reads custom `arb-dir` and `template-arb-file` if already present in your project. |
+| `lib/core/` | **Mandatory** | The designated directory for localization helpers and centralized non-UI strings. |
+| `lib/core/localization_helper.dart` | **Mandatory** | Provides the context-less `l10n` global getter, `globalNavigatorKey`, and `changeAppLocale`. |
+| `lib/core/app_strings.dart` | **Mandatory** | The safe bridge for all business logic, Dio, and BLoC strings. |
+| `lib/l10n/` (or custom `arb-dir`) | **Configurable** | Where `.arb` translation catalogs are stored. Configured in `l10n.yaml`. |
+
+---
+
+### B. Brownfield Integration & Existing Project Scenarios
+
+Integrating `auto_localize_cli` into a production app with existing localization or custom routing is seamless:
+
+#### 1. Projects with Existing `.arb` Files and Custom `l10n.yaml`
+If your project already has an `l10n.yaml` (e.g. `arb-dir: assets/locales`, `template-arb-file: intl_en.arb`), `auto_localize_cli:extract` will:
+- Automatically parse your existing `l10n.yaml`.
+- Respect your custom ARB directory and template file name.
+- Load all existing keys into a reverse map so that **any existing strings are reused rather than duplicated**.
+
+#### 2. Declarative Routers (`go_router`, `auto_route`, `beamer`)
+If your project uses `go_router` or `auto_route` instead of `MaterialApp(routes: ...)`, simply attach `globalNavigatorKey` to your router configuration:
 
 ```dart
-// BEFORE
-const Center(
-  child: Column(
-    children: [
-      Text("Welcome to our App"), // Hardcoded string inside nested consts
-    ],
-  ),
+// GoRouter example:
+final GoRouter _router = GoRouter(
+  navigatorKey: globalNavigatorKey, // Attach the global key here!
+  routes: [ ... ],
 );
-```
 
-Because `l10n.welcomeToOurApp` is a dynamic getter evaluated at runtime, leaving `const Center` or `const Column` would cause the Dart compiler to fail with:
-`Error: Cannot invoke a non-'const' factory constructor with 'const'`.
-
-`auto_localize_cli`'s AST visitor tracks ancestor `const` tokens and strips them bottom-to-top:
-
-```dart
-// AFTER
-Center(
-  child: Column(
-    children: [
-      Text(l10n.welcomeToOurApp),
-    ],
-  ),
-);
-```
-
-Non-invalidated sibling constants remain untouched!
-
----
-
-### 3. Full `StringInterpolation` Support
-Dart string interpolations are automatically analyzed, parameterized into ARB format, and transformed into typed method invocations.
-
-#### Example 1: Property Access & Binary Expressions
-```dart
-// BEFORE
-Text("Order #${order.id} has ${order.itemCount + 1} items for $userName")
-
-// AFTER in Dart:
-Text(l10n.orderOrderIdItemCount1(order.id, order.itemCount + 1, userName))
-
-// Generated in .arb:
-"orderOrderIdItemCount1": "Order #{orderId} has {orderItemCount1} items for {userName}",
-"@orderOrderIdItemCount1": {
-  "placeholders": {
-    "orderId": {},
-    "orderItemCount1": {},
-    "userName": {}
-  }
-}
-```
-
-#### Example 2: Duplicate Expression Deduplication
-```dart
-// BEFORE
-Text("Hi $userName, welcome back $userName!")
-
-// AFTER in Dart (userName is passed only ONCE!):
-Text(l10n.hiUserNameWelcome(userName))
-
-// Generated in .arb:
-"hiUserNameWelcome": "Hi {userName}, welcome back {userName}!",
-"@hiUserNameWelcome": {
-  "placeholders": {
-    "userName": {}
-  }
-}
+// In MaterialApp.router:
+MaterialApp.router(
+  routerConfig: _router,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+)
 ```
 
 ---
 
-## 🌍 International & Custom Base Locale Support (`--locale`)
+## Section 4: Custom Default Base Locale (`--locale` / `-l`) & International Support
 
-Not every developer or organization uses English as their default template language! If you are developing an app primarily in **Russian (`ru`)**, **Spanish (`es`)**, **French (`fr`)**, **German (`de`)**, **Bengali (`bn`)**, or **Hindi (`hi`)**, `auto_localize_cli` lets you define your base locale via the `--locale` (or `-l`) parameter:
+Not every application uses English as its primary development language! If your team is building an application in **Russian (`ru`)**, **Spanish (`es`)**, **French (`fr`)**, **German (`de`)**, **Bengali (`bn`)**, or **Hindi (`hi`)**, pass `--locale` (or `-l`) during initialization:
 
 ```bash
-# Initialize for a Russian project
+# Initialize for a Russian primary project
 dart run auto_localize_cli:init --locale ru
 
-# Or initialize for Spanish
+# Initialize for Spanish
 dart run auto_localize_cli:init -l es
+
+# If omitted, defaults to English ('en')
+dart run auto_localize_cli:init
 ```
 
 ### What happens under the hood:
@@ -222,8 +270,8 @@ dart run auto_localize_cli:init -l es
 2. `lib/l10n/app_ru.arb` is scaffolded with `"@@locale": "ru"`.
 3. `dart run auto_localize_cli:extract` automatically reads `l10n.yaml`, detects `app_ru.arb`, and populates your Russian catalog!
 
-### Multilingual Transliteration & Valid Identifier Generation
-In Dart, method identifiers must be ASCII (`[a-zA-Z_$][a-zA-Z0-9_$]*`). If a Russian developer writes Russian UI text directly in widgets:
+### Multilingual Cyrillic Transliteration
+Dart getter names must be valid ASCII identifiers (`[a-zA-Z_$][a-zA-Z0-9_$]*`). When non-Latin strings are written in UI code:
 
 ```dart
 Text("Привет мир")
@@ -234,22 +282,13 @@ Text("24 7 Служба поддержки доступна")
 - `"Привет мир"` $\rightarrow$ `l10n.privetMir`
 - `"24 7 Служба поддержки доступна"` $\rightarrow$ `l10n.sluzhba247Dostupna`
 
-And inside `lib/l10n/app_ru.arb`:
-```json
-{
-  "@@locale": "ru",
-  "privetMir": "Привет мир",
-  "sluzhba247Dostupna": "24 7 Служба поддержки доступна"
-}
-```
-
 ---
 
-## 🧠 7-Step Smart Key Generation Algorithm
+## Section 5: 7-Step Smart Key Generation Algorithm
 
-`auto_localize_cli` uses a 7-step natural language algorithm to guarantee clean, readable, collision-free `camelCase` keys:
+`auto_localize_cli` uses a deterministic natural language algorithm to transform human sentences into clean `camelCase` keys:
 
-1. **Step 1: Validation & Filtering:** Rejects empty strings, single punctuation, URLs (`https://`), asset paths (`assets/images/`), route paths (`/home`), and strings without alphabetic letters (`"2026"`, `"100%"`).
+1. **Step 1: Validation & Filtering:** Rejects empty strings, single punctuation, URLs, asset paths, route paths, and strings without alphabetic letters (`"2026"`, `"100%"`).
 2. **Step 2: Tokenization & Contraction Normalization:** Splits camelCase boundaries (`userName` $\rightarrow$ `user Name`), normalizes contractions (`"It's"` $\rightarrow$ `"Its"`, `"user's"` $\rightarrow$ `"user"`), and transliterates Cyrillic/non-Latin letters.
 3. **Step 3: Leading Number Repositioning:** If a phrase begins with numbers (`"24 7 Customer Support Available"`), the first alphabetic word (`"Customer"`) is shifted to index 0, yielding `["Customer", "24", "7", "Support", "Available"]`.
 4. **Step 4: Stopword & Noise Word Pruning:** Prunes filler words (`been`, `have`, `had`, `the`, `a`, `an`) and `-ly` adverbs (`temporarily`, `permanently`, `currently`, `immediately`).
@@ -278,7 +317,7 @@ And inside `lib/l10n/app_ru.arb`:
 
 ---
 
-## 🛡️ The 18 Compiler & Architecture Edge Cases Solved
+## Section 6: The 18 Compiler & Architecture Edge Cases Solved
 
 `auto_localize_cli` is hardened against 18 complex Dart compiler and Flutter architectural edge cases:
 
@@ -303,7 +342,7 @@ And inside `lib/l10n/app_ru.arb`:
 
 ---
 
-## 🚀 Quick Start Guide
+## Section 7: Quick Start Guide (Step-by-Step)
 
 ### Step 1: Add Dependency
 
@@ -482,13 +521,29 @@ Your `lib/l10n/app_en.arb` is automatically populated and compiled:
 
 ---
 
-## 🔄 Reactive Runtime Locale Switching
+### Step 5: Add Additional Languages & Switch Locales Live
 
-Switch languages dynamically anywhere in your application without restarting:
+Create a new translation file, e.g. `lib/l10n/app_bn.arb`:
+
+```json
+{
+  "@@locale": "bn",
+  "dashboardOverview": "ড্যাশবোর্ড ওভারভিউ",
+  "customer247Available": "২৪ ৭ কাস্টমার সাপোর্ট উপলব্ধ",
+  "welcomeBackUserNameNotifications": "স্বাগতম {userName}, আপনার {pendingCount} টি নতুন বিজ্ঞপ্তি আছে!",
+  "continueText": "চালিয়ে যান"
+}
+```
+
+Rebuild localizations:
+
+```bash
+flutter gen-l10n
+```
+
+Switch languages dynamically anywhere in your app:
 
 ```dart
-import 'package:your_app_name/core/localization_helper.dart';
-
 // Switch to Bengali
 changeAppLocale(const Locale('bn'));
 
@@ -499,63 +554,38 @@ changeAppLocale(const Locale('ru'));
 changeAppLocale(const Locale('en'));
 ```
 
-### How It Works Under the Hood
-`changeAppLocale(locale)` notifies `localeNotifier` and recursively marks the current Navigator route dirty via element tree invalidation. This forces the entire widget tree to rebuild with the new locale immediately, even for `const` route configurations!
+The entire UI updates immediately without restarting the application!
 
 ---
 
-## 🏗️ Advanced Workflows: Cubits, Blocs & Services
+## Section 8: Architectural Diagram, FAQ, Contributing & License
 
-Because `l10n` does not require a `BuildContext`, you can cleanly localize errors and status messages in your business logic layer:
+### Architecture Pipeline Diagram
 
-```dart
-// lib/features/orders/orders_cubit.dart
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:your_app_name/core/localization_helper.dart';
+```mermaid
+flowchart TD
+    subgraph Initialization["1. Initialization: dart run auto_localize_cli:init"]
+        A["Flutter Project Root"] --> B["Configure pubspec.yaml\n(flutter_localizations, intl, generate: true)"]
+        B --> C["Generate l10n.yaml\n(arb-dir, template-arb-file)"]
+        C --> D["Scaffold lib/l10n/app_<locale>.arb\n(en, ru, es, bn, etc.)"]
+        D --> E["Scaffold lib/core/localization_helper.dart\n(Global l10n getter, localeNotifier, changeAppLocale)"]
+        E --> F["Scaffold lib/core/app_strings.dart\n(Core error and message catalog)"]
+    end
 
-class OrdersCubit extends Cubit<OrdersState> {
-  OrdersCubit() : super(OrdersInitial());
-
-  Future<void> fetchOrders() async {
-    emit(OrdersLoading());
-    try {
-      final orders = await repository.getOrders();
-      emit(OrdersLoaded(orders));
-    } catch (e) {
-      // Localize directly inside business logic!
-      emit(OrdersError(l10n.failedToFetchOrderDetails));
-    }
-  }
-}
+    subgraph Extraction["2. Extraction: dart run auto_localize_cli:extract"]
+        G["Scan lib/ Dart Source Files"] --> H["Parse AST via package:analyzer"]
+        H --> I["LocalizationAstVisitor:\nDetect UI strings & track ancestor consts"]
+        I --> J["Smart Key Generator:\n7-Step camelCase & Cyrillic transliteration"]
+        J --> K["ArbManager:\nUpdate .arb catalog & deduplicate reverse map"]
+        K --> L["CodeRewriter:\nBottom-to-Top offset replacement + const removal"]
+        L --> M["Auto-Importer:\npart/part of aware imports into parent library"]
+        M --> N["Auto-Run flutter gen-l10n:\nCompile AppLocalizations"]
+    end
 ```
 
 ---
 
-## 🛠️ CLI Command Reference
-
-### `init`
-```bash
-Usage: dart run auto_localize_cli:init [options]
-
-Options:
--h, --help       Show command usage instructions.
--l, --locale     Default base locale template (e.g. en, ru, es, bn, fr, de).
-                 (defaults to "en")
-```
-
-### `extract`
-```bash
-Usage: dart run auto_localize_cli:extract [options]
-
-Options:
--h, --help       Show command usage instructions.
--l, --locale     Target locale template ARB file to extract into.
-                 If omitted, automatically detected from l10n.yaml.
-```
-
----
-
-## ❓ Frequently Asked Questions (FAQ)
+### ❓ Frequently Asked Questions (FAQ)
 
 #### Q: Is running `extract` safe to execute repeatedly?
 **Yes.** `auto_localize_cli:extract` is **100% idempotent**. Running it on a project that has already been extracted will make **0 modifications** and extract **0 strings**.
@@ -571,7 +601,7 @@ It uses a safe fallback: if `globalNavigatorKey.currentContext` is `null`, it ca
 
 ---
 
-## 🤝 Contributing & License
+### 🤝 Contributing & License
 
 Contributions, bug reports, and feature requests are welcome! Feel free to open an issue or submit a Pull Request on [GitHub](https://github.com/Dilip-2003/auto_localize_cli).
 
