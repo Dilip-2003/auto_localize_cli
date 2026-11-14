@@ -23,7 +23,8 @@ class ExtractRunner {
     final pubspecFile = File(p.join(projectDir.path, 'pubspec.yaml'));
     if (!await pubspecFile.exists()) {
       stderr.writeln('Error: pubspec.yaml not found in ${projectDir.path}.');
-      stderr.writeln('Please run this command from the root of a Flutter project.');
+      stderr.writeln(
+          'Please run this command from the root of a Flutter project.');
       exitCode = 1;
       return;
     }
@@ -48,7 +49,8 @@ class ExtractRunner {
       return;
     }
 
-    stdout.writeln('🔍 Scanning Dart source files in lib/ for hardcoded strings...');
+    stdout.writeln(
+        '🔍 Scanning Dart source files in lib/ for hardcoded strings...');
     var totalFilesScanned = 0;
     var totalFilesModified = 0;
     var totalStringsExtracted = 0;
@@ -83,7 +85,8 @@ class ExtractRunner {
 
     // Save ARB entries
     await arbManager.save();
-    stdout.writeln('💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.');
+    stdout.writeln(
+        '💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.');
 
     stdout.writeln('''
 ----------------------------------------------------------------------
@@ -160,7 +163,8 @@ Extraction Summary:
       if (result.exitCode == 0) {
         stdout.writeln('✅ AppLocalizations regenerated successfully!');
       } else {
-        stdout.writeln('Note: Could not run `flutter gen-l10n` automatically: ${result.stderr}');
+        stdout.writeln(
+            'Note: Could not run `flutter gen-l10n` automatically: ${result.stderr}');
         stdout.writeln('Please run `flutter gen-l10n` in your terminal.');
       }
     } catch (e) {

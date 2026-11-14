@@ -22,24 +22,29 @@ class InitRunner {
     final pubspecFile = File(p.join(projectDir.path, 'pubspec.yaml'));
     if (!await pubspecFile.exists()) {
       stderr.writeln('Error: pubspec.yaml not found in ${projectDir.path}.');
-      stderr.writeln('Please run this command from the root of a Flutter project.');
+      stderr.writeln(
+          'Please run this command from the root of a Flutter project.');
       exitCode = 1;
       return;
     }
 
-    stdout.writeln('📦 Configuring Flutter localization dependencies in pubspec.yaml...');
+    stdout.writeln(
+        '📦 Configuring Flutter localization dependencies in pubspec.yaml...');
     final packageName = await _configurePubspec(pubspecFile);
 
     stdout.writeln('⚙️  Creating l10n.yaml configuration...');
     await _createL10nYaml();
 
-    stdout.writeln('🌐 Scaffolding template ARB file (lib/l10n/app_$defaultLocale.arb)...');
+    stdout.writeln(
+        '🌐 Scaffolding template ARB file (lib/l10n/app_$defaultLocale.arb)...');
     await _createInitialArb();
 
-    stdout.writeln('🧩 Creating context-less global getter (lib/core/localization_helper.dart)...');
+    stdout.writeln(
+        '🧩 Creating context-less global getter (lib/core/localization_helper.dart)...');
     await _createLocalizationHelper();
 
-    stdout.writeln('📝 Creating core string class (lib/core/app_strings.dart)...');
+    stdout.writeln(
+        '📝 Creating core string class (lib/core/app_strings.dart)...');
     await _createAppStrings();
 
     stdout.writeln('''
@@ -78,14 +83,17 @@ Next Steps:
     // 1. Ensure dependencies has flutter_localizations & intl
     final dependencies = yaml?['dependencies'] as YamlMap?;
     if (dependencies == null) {
-      editor.update(['dependencies'], {
+      editor.update([
+        'dependencies'
+      ], {
         'flutter': {'sdk': 'flutter'},
         'flutter_localizations': {'sdk': 'flutter'},
         'intl': 'any',
       });
     } else {
       if (!dependencies.containsKey('flutter_localizations')) {
-        editor.update(['dependencies', 'flutter_localizations'], {'sdk': 'flutter'});
+        editor.update(
+            ['dependencies', 'flutter_localizations'], {'sdk': 'flutter'});
       }
       if (!dependencies.containsKey('intl')) {
         editor.update(['dependencies', 'intl'], 'any');
