@@ -80,7 +80,9 @@ class MyApp extends StatelessWidget {
       }
     });
 
-    test('extracts all UI strings, core errors, removes consts, and updates ARB', () async {
+    test(
+        'extracts all UI strings, core errors, removes consts, and updates ARB',
+        () async {
       final runner = ExtractRunner(projectDir: tempDir);
       await runner.run();
 
@@ -109,21 +111,27 @@ class MyApp extends StatelessWidget {
       expect(arbJson.containsKey('2026'), isFalse);
 
       // 2. Verify lib/main.dart
-      final mainContent = await File('${tempDir.path}/lib/main.dart').readAsString();
+      final mainContent =
+          await File('${tempDir.path}/lib/main.dart').readAsString();
       expect(mainContent, contains('Text(l10n.page404NotFound)'));
       expect(mainContent, contains('Text(l10n.yourAccountHasSuspended)'));
       expect(mainContent, contains('Text(l10n.yourAccountHasDeleted)'));
       expect(mainContent, contains('Text(l10n.continueText)'));
       expect(mainContent, contains('Text("2026")'));
       expect(mainContent, isNot(contains('const MaterialApp')));
-      expect(mainContent, contains("import 'package:test_sample/core/localization_helper.dart';"));
+      expect(
+          mainContent,
+          contains(
+              "import 'package:test_sample/core/localization_helper.dart';"));
 
       // 3. Verify lib/core/app_strings.dart
       final stringsContent =
-          await File('${tempDir.path}/lib/core/app_strings.dart').readAsString();
+          await File('${tempDir.path}/lib/core/app_strings.dart')
+              .readAsString();
       expect(
         stringsContent,
-        contains('static String get networkError => l10n.pleaseCheckYourConnection;'),
+        contains(
+            'static String get networkError => l10n.pleaseCheckYourConnection;'),
       );
       expect(
         stringsContent,

@@ -5,18 +5,21 @@ void main() {
   group('KeyGenerator 7-step algorithm', () {
     const generator = KeyGenerator();
 
-    test('repositions leading numbers (404 Page Not Found -> page404NotFound)', () {
+    test('repositions leading numbers (404 Page Not Found -> page404NotFound)',
+        () {
       final key = generator.generateKey('404 Page Not Found');
       expect(key, equals('page404NotFound'));
     });
 
     test('prunes adverbs and auxiliary words (temporarily suspended)', () {
-      final key = generator.generateKey('Your account has been temporarily suspended');
+      final key =
+          generator.generateKey('Your account has been temporarily suspended');
       expect(key, equals('yourAccountHasSuspended'));
     });
 
     test('prunes adverbs and auxiliary words (permanently deleted)', () {
-      final key = generator.generateKey('Your account has been permanently deleted');
+      final key =
+          generator.generateKey('Your account has been permanently deleted');
       expect(key, equals('yourAccountHasDeleted'));
     });
 
@@ -30,8 +33,11 @@ void main() {
       expect(key, isNull);
     });
 
-    test('prunes long sentence to max 4 tokens (Please check your internet connection)', () {
-      final key = generator.generateKey('Please check your internet connection');
+    test(
+        'prunes long sentence to max 4 tokens (Please check your internet connection)',
+        () {
+      final key =
+          generator.generateKey('Please check your internet connection');
       expect(key, equals('pleaseCheckYourConnection'));
     });
 

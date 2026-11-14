@@ -40,7 +40,8 @@ class ArbManager {
             _data.addAll(decoded);
           }
         } catch (e) {
-          stderr.writeln('Warning: Failed to parse ARB JSON at ${arbFile.path}: $e');
+          stderr.writeln(
+              'Warning: Failed to parse ARB JSON at ${arbFile.path}: $e');
         }
       }
     }
@@ -106,9 +107,7 @@ class ArbManager {
       orderedMap['@@locale'] = _data['@@locale'];
     }
 
-    final regularKeys = _data.keys
-        .where((k) => !k.startsWith('@'))
-        .toList()
+    final regularKeys = _data.keys.where((k) => !k.startsWith('@')).toList()
       ..sort();
 
     for (final key in regularKeys) {

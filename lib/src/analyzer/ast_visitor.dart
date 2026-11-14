@@ -40,7 +40,8 @@ class SourceEdit implements Comparable<SourceEdit> {
   int get hashCode => Object.hash(offset, length, replacement);
 
   @override
-  String toString() => 'SourceEdit(offset: $offset, len: $length, rep: "$replacement")';
+  String toString() =>
+      'SourceEdit(offset: $offset, len: $length, rep: "$replacement")';
 }
 
 /// Information about an extracted string literal candidate.
@@ -360,7 +361,8 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     int fallbackIndex,
   ) {
     final cleaned = rawExpr.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), ' ').trim();
-    final tokens = cleaned.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    final tokens =
+        cleaned.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
 
     String candidate;
     if (tokens.isEmpty || RegExp(r'^\d').hasMatch(tokens.first)) {
@@ -453,7 +455,8 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         final target = grandParent.target;
 
         // PascalCase invocations (e.g. Text("..."), SelectableText("..."))
-        if (RegExp(r'^[A-Z]').hasMatch(name) && !_ignoredInvocations.contains(name)) {
+        if (RegExp(r'^[A-Z]').hasMatch(name) &&
+            !_ignoredInvocations.contains(name)) {
           return true;
         }
 

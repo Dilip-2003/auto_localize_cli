@@ -47,9 +47,12 @@ void main() {
 
     // Case 4 & 5
     test('4 & 5. Account status messages produce distinct meaningful keys', () {
-      final suspended = keyGen.generateKey('Your account has been temporarily suspended');
-      final deleted = keyGen.generateKey('Your account has been permanently deleted');
-      final verified = keyGen.generateKey('Your account has been successfully verified');
+      final suspended =
+          keyGen.generateKey('Your account has been temporarily suspended');
+      final deleted =
+          keyGen.generateKey('Your account has been permanently deleted');
+      final verified =
+          keyGen.generateKey('Your account has been successfully verified');
 
       expect(suspended, equals('yourAccountHasSuspended'));
       expect(deleted, equals('yourAccountHasDeleted'));
@@ -57,7 +60,9 @@ void main() {
     });
 
     // Case 6
-    test('6. Collision with same first 3 words & same last word falls back to 2nd-last word', () {
+    test(
+        '6. Collision with same first 3 words & same last word falls back to 2nd-last word',
+        () {
       final existing = <String>{'yourCurrentLoginAgain'};
       final key = keyGen.generateKey(
         'Your current login session has expired please try again',
@@ -67,7 +72,10 @@ void main() {
       expect(key, equals('yourCurrentLoginTry'));
 
       // If that's also taken, falls back to 3rd-last word 'please'
-      final existing2 = <String>{'yourCurrentLoginAgain', 'yourCurrentLoginTry'};
+      final existing2 = <String>{
+        'yourCurrentLoginAgain',
+        'yourCurrentLoginTry'
+      };
       final key2 = keyGen.generateKey(
         'Your current login session has expired please try again',
         existingKeys: existing2,
@@ -88,7 +96,8 @@ void main() {
     });
 
     // Case 7
-    test('7. Pure numbers, symbol-numbers, and emails are strictly ignored', () {
+    test('7. Pure numbers, symbol-numbers, and emails are strictly ignored',
+        () {
       expect(keyGen.shouldIgnore('2026'), isTrue);
       expect(keyGen.shouldIgnore('100%'), isTrue);
       expect(keyGen.shouldIgnore('+91-9876543210'), isTrue);
@@ -101,7 +110,9 @@ void main() {
     });
 
     // Case 8
-    test('8. StringInterpolation: simple variables, properties, binary exprs, and deduplication', () {
+    test(
+        '8. StringInterpolation: simple variables, properties, binary exprs, and deduplication',
+        () {
       const source = '''
 import 'package:flutter/material.dart';
 
@@ -161,7 +172,9 @@ class OrderDetailsView extends StatelessWidget {
     });
 
     // Case 9
-    test('9. app_strings.dart extracts getters, const fields, and parameterized regular methods', () {
+    test(
+        '9. app_strings.dart extracts getters, const fields, and parameterized regular methods',
+        () {
       const source = '''
 import 'localization_helper.dart';
 
@@ -181,17 +194,20 @@ class AppStrings {
 }
 ''';
 
-      final result = rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
+      final result =
+          rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
       expect(result.modified, isTrue);
       expect(result.stringsExtracted, equals(4));
 
       expect(
         result.newContent,
-        contains('static String get networkError => l10n.pleaseCheckYourConnection;'),
+        contains(
+            'static String get networkError => l10n.pleaseCheckYourConnection;'),
       );
       expect(
         result.newContent,
-        contains('static String get constantError => l10n.databaseConnectionTimeoutOccurred;'),
+        contains(
+            'static String get constantError => l10n.databaseConnectionTimeoutOccurred;'),
       );
       expect(
         result.newContent,
@@ -202,7 +218,9 @@ class AppStrings {
     });
 
     // Case 10: part / part of handling
-    test('10. part of file does not receive import; parent file receives import', () async {
+    test(
+        '10. part of file does not receive import; parent file receives import',
+        () async {
       final featureDir = Directory('${tempDir.path}/features');
       await featureDir.create(recursive: true);
 
@@ -236,11 +254,14 @@ class OrdersState {
 
       // Parent file MUST contain the localization_helper import
       final parentUpdated = await parentFile.readAsString();
-      expect(parentUpdated, contains("import 'package:test_app/core/localization_helper.dart';"));
+      expect(parentUpdated,
+          contains("import 'package:test_app/core/localization_helper.dart';"));
     });
 
     // Case 11: Ignored default parameter, constructor initializer, and asserts
-    test('11. Default formal parameters, constructor super initializers, and asserts are ignored', () {
+    test(
+        '11. Default formal parameters, constructor super initializers, and asserts are ignored',
+        () {
       const source = '''
 import 'package:flutter/material.dart';
 
@@ -259,22 +280,29 @@ class CustomButton extends StatelessWidget {
 }
 ''';
 
-      final result = rewriter.rewrite(source, filePath: 'lib/custom_button.dart');
+      final result =
+          rewriter.rewrite(source, filePath: 'lib/custom_button.dart');
       expect(result.modified, isFalse);
-      expect(result.newContent, contains('this.title = "Default Button Label"'));
+      expect(
+          result.newContent, contains('this.title = "Default Button Label"'));
       expect(result.newContent, contains('"Title cannot be empty"'));
       expect(result.newContent, contains('"Context must be mounted"'));
     });
 
     // Case 12: Multilingual / Russian Cyrillic transliteration support
-    test('12. Cyrillic and international text generates valid Latin camelCase Dart getters', () {
+    test(
+        '12. Cyrillic and international text generates valid Latin camelCase Dart getters',
+        () {
       expect(keyGen.generateKey('Привет мир'), equals('privetMir'));
-      expect(keyGen.generateKey('Служба поддержки'), equals('sluzhbaPodderzhki'));
-      expect(keyGen.generateKey('24 7 Служба поддержки доступна'), equals('sluzhba247Dostupna'));
+      expect(
+          keyGen.generateKey('Служба поддержки'), equals('sluzhbaPodderzhki'));
+      expect(keyGen.generateKey('24 7 Служба поддержки доступна'),
+          equals('sluzhba247Dostupna'));
     });
 
     // Case 13: Custom default locale in InitRunner
-    test('13. InitRunner scaffolds custom locale template ARB and l10n.yaml', () async {
+    test('13. InitRunner scaffolds custom locale template ARB and l10n.yaml',
+        () async {
       final customDir = Directory('${tempDir.path}/custom_ru_app');
       await customDir.create(recursive: true);
 
@@ -292,7 +320,8 @@ dependencies:
 
       final l10nYaml = File('${customDir.path}/l10n.yaml');
       expect(await l10nYaml.exists(), isTrue);
-      expect(await l10nYaml.readAsString(), contains('template-arb-file: app_ru.arb'));
+      expect(await l10nYaml.readAsString(),
+          contains('template-arb-file: app_ru.arb'));
 
       final arbRu = File('${customDir.path}/lib/l10n/app_ru.arb');
       expect(await arbRu.exists(), isTrue);

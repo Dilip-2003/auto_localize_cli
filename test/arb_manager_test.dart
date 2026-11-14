@@ -53,7 +53,8 @@ void main() {
 
       expect(reloadedManager.existingKeys, contains('page404NotFound'));
       expect(reloadedManager.existingKeys, contains('yourAccountHasSuspended'));
-      expect(reloadedManager.reverseMap['404 Page Not Found'], equals('page404NotFound'));
+      expect(reloadedManager.reverseMap['404 Page Not Found'],
+          equals('page404NotFound'));
     });
 
     test('saves parameterized keys with @key placeholders metadata', () async {

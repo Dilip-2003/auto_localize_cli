@@ -37,7 +37,8 @@ flutter:
       await runner.run();
 
       // Check pubspec.yaml updates
-      final updatedPubspec = await File('${tempDir.path}/pubspec.yaml').readAsString();
+      final updatedPubspec =
+          await File('${tempDir.path}/pubspec.yaml').readAsString();
       final yaml = loadYaml(updatedPubspec) as YamlMap;
       final deps = yaml['dependencies'] as YamlMap;
       expect(deps.containsKey('flutter_localizations'), isTrue);
@@ -58,7 +59,8 @@ flutter:
       expect(arbContent, contains('"@@locale": "en"'));
 
       // Check localization_helper.dart
-      final helperFile = File('${tempDir.path}/lib/core/localization_helper.dart');
+      final helperFile =
+          File('${tempDir.path}/lib/core/localization_helper.dart');
       expect(await helperFile.exists(), isTrue);
       final helperContent = await helperFile.readAsString();
       expect(helperContent, contains('globalNavigatorKey'));

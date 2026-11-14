@@ -47,7 +47,8 @@ class MyView extends StatelessWidget {
       final result = rewriter.rewrite(source, filePath: 'lib/main.dart');
 
       expect(result.modified, isTrue);
-      expect(result.stringsExtracted, equals(2)); // 404 Page Not Found & Continue, 2026 is ignored
+      expect(result.stringsExtracted,
+          equals(2)); // 404 Page Not Found & Continue, 2026 is ignored
       expect(result.constsRemoved, equals(1)); // Column's const is removed
 
       // Verify source changes
@@ -78,13 +79,15 @@ class AppStrings {
 }
 ''';
 
-      final result = rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
+      final result =
+          rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
 
       expect(result.modified, isTrue);
       expect(result.stringsExtracted, equals(1));
       expect(
         result.newContent,
-        contains('static String get networkError => l10n.pleaseCheckYourConnection;'),
+        contains(
+            'static String get networkError => l10n.pleaseCheckYourConnection;'),
       );
       expect(
         result.newContent,
@@ -93,7 +96,9 @@ class AppStrings {
       expect(arbManager.existingKeys, contains('pleaseCheckYourConnection'));
     });
 
-    test('rewrites StringInterpolation into parameterized calls and extracts @metadata', () {
+    test(
+        'rewrites StringInterpolation into parameterized calls and extracts @metadata',
+        () {
       const source = '''
 import 'package:flutter/material.dart';
 
@@ -121,7 +126,8 @@ class GreetingView extends StatelessWidget {
       final result = rewriter.rewrite(source, filePath: 'lib/view.dart');
 
       expect(result.modified, isTrue);
-      expect(result.stringsExtracted, equals(3)); // 3 translatable interpolations
+      expect(
+          result.stringsExtracted, equals(3)); // 3 translatable interpolations
 
       // Verify parameter calls in Dart code
       expect(result.newContent, contains('Text(l10n.helloUserName(userName))'));
