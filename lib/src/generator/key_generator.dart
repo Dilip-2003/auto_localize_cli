@@ -123,8 +123,14 @@ class KeyGenerator {
 
   /// Step 2: Split string into words and numbers, removing punctuation and splitting camelCase.
   List<String> _tokenize(String text) {
+    // Normalize contractions and possessives: "It's" -> "Its", "user's" -> "user"
+    final normalized = text
+        .replaceAll(RegExp(r"\bIt['’]s\b", caseSensitive: false), 'Its')
+        .replaceAll(RegExp(r"['’]s\b"), '')
+        .replaceAll(RegExp(r"['’]"), '');
+
     // Split camelCase boundaries (e.g. userName -> user Name, totalAmount -> total Amount)
-    final splitCamel = text.replaceAllMapped(
+    final splitCamel = normalized.replaceAllMapped(
       RegExp(r'([a-z0-9])([A-Z])'),
       (m) => '${m[1]} ${m[2]}',
     );

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:path/path.dart' as p;
 import '../generator/arb_manager.dart';
 import 'ast_visitor.dart';
 
@@ -72,18 +74,33 @@ class CodeRewriter {
         placeholders: candidate.placeholders,
       );
       if (key != null) {
-        final replacement = candidate.arguments.isEmpty
-            ? 'l10n.$key'
-            : 'l10n.$key(${candidate.arguments.join(', ')})';
+        if (candidate.customFieldGetterName != null &&
+            candidate.fieldOffset != null &&
+            candidate.fieldLength != null) {
+          final replacement =
+              'static String get ${candidate.customFieldGetterName} => l10n.$key;';
+          edits.add(
+            SourceEdit(
+              offset: candidate.fieldOffset!,
+              length: candidate.fieldLength!,
+              replacement: replacement,
+            ),
+          );
+          extractedCount++;
+        } else {
+          final replacement = candidate.arguments.isEmpty
+              ? 'l10n.$key'
+              : 'l10n.$key(${candidate.arguments.join(', ')})';
 
-        edits.add(
-          SourceEdit(
-            offset: candidate.offset,
-            length: candidate.length,
-            replacement: replacement,
-          ),
-        );
-        extractedCount++;
+          edits.add(
+            SourceEdit(
+              offset: candidate.offset,
+              length: candidate.length,
+              replacement: replacement,
+            ),
+          );
+          extractedCount++;
+        }
       }
     }
 
@@ -152,6 +169,15 @@ class CodeRewriter {
     required String filePath,
     required CompilationUnit unit,
   }) {
+    // Check if this is a part file
+    final partOf = unit.directives.whereType<PartOfDirective>().firstOrNull;
+    if (partOf != null) {
+      // Dart part files CANNOT contain import directives.
+      // We must inject the import into the parent library file instead.
+      _injectImportIntoParentLibrary(filePath, partOf);
+      return content;
+    }
+
     final helperImportTarget = 'localization_helper.dart';
     if (content.contains(helperImportTarget)) {
       return content;
@@ -178,7 +204,8 @@ class CodeRewriter {
     }
 
     // If no imports exist, place after directives (like library) or at top
-    final lastDirective = unit.directives.isNotEmpty ? unit.directives.last : null;
+    final lastDirective =
+        unit.directives.isNotEmpty ? unit.directives.last : null;
     if (lastDirective != null) {
       final end = lastDirective.end;
       final lineBreakIndex = content.indexOf('\n', end);
@@ -190,5 +217,78 @@ class CodeRewriter {
 
     // Default to the top of the file
     return '$importStatement\n\n$content';
+  }
+
+  void _injectImportIntoParentLibrary(
+    String partFilePath,
+    PartOfDirective directive,
+  ) {
+    String? parentPath;
+    final uriString = directive.uri?.stringValue;
+    if (uriString != null) {
+      parentPath = p.normalize(p.join(p.dirname(partFilePath), uriString));
+    } else if (directive.libraryName != null) {
+      final dir = Directory(p.dirname(partFilePath));
+      if (dir.existsSync()) {
+        for (final entity in dir.listSync()) {
+          if (entity is File &&
+              entity.path.endsWith('.dart') &&
+              entity.path != partFilePath) {
+            final text = entity.readAsStringSync();
+            if (text.contains('library ${directive.libraryName!.name}')) {
+              parentPath = entity.path;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (parentPath == null) return;
+    final parentFile = File(parentPath);
+    if (!parentFile.existsSync()) return;
+
+    final parentContent = parentFile.readAsStringSync();
+    final helperImportTarget = 'localization_helper.dart';
+    if (parentContent.contains(helperImportTarget)) return;
+
+    final parentParsed = parseString(
+      content: parentContent,
+      path: parentPath,
+      throwIfDiagnostics: false,
+    );
+    final importStatement =
+        "import 'package:$packageName/core/localization_helper.dart';";
+
+    final lastImport = parentParsed.unit.directives
+        .whereType<ImportDirective>()
+        .fold<ImportDirective?>(null, (prev, elem) => elem);
+
+    String newParentContent;
+    if (lastImport != null) {
+      final endOfImport = lastImport.end;
+      final lineBreakIndex = parentContent.indexOf('\n', endOfImport);
+      final insertionOffset =
+          lineBreakIndex != -1 ? lineBreakIndex + 1 : endOfImport;
+      newParentContent = parentContent.substring(0, insertionOffset) +
+          '$importStatement\n' +
+          parentContent.substring(insertionOffset);
+    } else {
+      final lastDirective = parentParsed.unit.directives.isNotEmpty
+          ? parentParsed.unit.directives.last
+          : null;
+      if (lastDirective != null) {
+        final end = lastDirective.end;
+        final lineBreakIndex = parentContent.indexOf('\n', end);
+        final insertionOffset = lineBreakIndex != -1 ? lineBreakIndex + 1 : end;
+        newParentContent = parentContent.substring(0, insertionOffset) +
+            '\n$importStatement\n' +
+            parentContent.substring(insertionOffset);
+      } else {
+        newParentContent = '$importStatement\n\n$parentContent';
+      }
+    }
+
+    parentFile.writeAsStringSync(newParentContent);
   }
 }

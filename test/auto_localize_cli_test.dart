@@ -161,7 +161,7 @@ class OrderDetailsView extends StatelessWidget {
     });
 
     // Case 9
-    test('9. app_strings.dart extracts both getters and parameterized regular methods', () {
+    test('9. app_strings.dart extracts getters, const fields, and parameterized regular methods', () {
       const source = '''
 import 'localization_helper.dart';
 
@@ -173,6 +173,9 @@ class AppStrings {
   static String get sessionExpired =>
       "Your current login session has expired please login again";
 
+  // Case 3: static const String field
+  static const String constantError = "Database connection timeout occurred";
+
   static String welcomeUser(String name, int count) =>
       "Welcome back \$name, you have \$count pending notifications";
 }
@@ -180,7 +183,7 @@ class AppStrings {
 
       final result = rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
       expect(result.modified, isTrue);
-      expect(result.stringsExtracted, equals(3));
+      expect(result.stringsExtracted, equals(4));
 
       expect(
         result.newContent,
@@ -188,10 +191,79 @@ class AppStrings {
       );
       expect(
         result.newContent,
+        contains('static String get constantError => l10n.databaseConnectionTimeoutOccurred;'),
+      );
+      expect(
+        result.newContent,
         contains(
           'l10n.welcomeBackNameNotifications(name, count);',
         ),
       );
+    });
+
+    // Case 10: part / part of handling
+    test('10. part of file does not receive import; parent file receives import', () async {
+      final featureDir = Directory('${tempDir.path}/features');
+      await featureDir.create(recursive: true);
+
+      final parentFile = File('${featureDir.path}/orders_cubit.dart');
+      await parentFile.writeAsString('''
+import 'package:flutter/foundation.dart';
+
+part 'orders_state.dart';
+
+class OrdersCubit {}
+''');
+
+      final partFile = File('${featureDir.path}/orders_state.dart');
+      final partSource = '''
+part of 'orders_cubit.dart';
+
+class OrdersState {
+  final String message;
+  const OrdersState(this.message);
+
+  factory OrdersState.initial() => const OrdersState("Initial orders status");
+}
+''';
+      await partFile.writeAsString(partSource);
+
+      final result = rewriter.rewrite(partSource, filePath: partFile.path);
+      expect(result.modified, isTrue);
+      // Part file must NOT contain import directive!
+      expect(result.newContent.contains("import '"), isFalse);
+      expect(result.newContent, contains('l10n.initialOrdersStatus'));
+
+      // Parent file MUST contain the localization_helper import
+      final parentUpdated = await parentFile.readAsString();
+      expect(parentUpdated, contains("import 'package:test_app/core/localization_helper.dart';"));
+    });
+
+    // Case 11: Ignored default parameter, constructor initializer, and asserts
+    test('11. Default formal parameters, constructor super initializers, and asserts are ignored', () {
+      const source = '''
+import 'package:flutter/material.dart';
+
+class CustomButton extends StatelessWidget {
+  final String title;
+  const CustomButton({
+    super.key,
+    this.title = "Default Button Label",
+  }) : assert(title.length > 0, "Title cannot be empty");
+
+  @override
+  Widget build(BuildContext context) {
+    assert(context.mounted, "Context must be mounted");
+    return Text(title);
+  }
+}
+''';
+
+      final result = rewriter.rewrite(source, filePath: 'lib/custom_button.dart');
+      expect(result.modified, isFalse);
+      expect(result.newContent, contains('this.title = "Default Button Label"'));
+      expect(result.newContent, contains('"Title cannot be empty"'));
+      expect(result.newContent, contains('"Context must be mounted"'));
     });
   });
 }

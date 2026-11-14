@@ -45,6 +45,9 @@ class ExtractionCandidate {
   final String reconstructedText; // For key generation, e.g. "Hello userName"
   final List<String> placeholders; // e.g. ["userName"]
   final List<String> arguments; // e.g. ["user.name"]
+  final String? customFieldGetterName; // e.g. "constantError"
+  final int? fieldOffset;
+  final int? fieldLength;
 
   const ExtractionCandidate({
     required this.offset,
@@ -53,6 +56,9 @@ class ExtractionCandidate {
     required this.reconstructedText,
     this.placeholders = const [],
     this.arguments = const [],
+    this.customFieldGetterName,
+    this.fieldOffset,
+    this.fieldLength,
   });
 }
 
@@ -71,6 +77,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     'RegExp',
     'Key',
     'ValueKey',
+    'Locale',
     'AssetImage',
     'NetworkImage',
     'ExactAssetImage',
@@ -131,6 +138,13 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
       return;
     }
 
+    // Check Case 3: static const String field in AppStrings -> convert to static getter
+    final fieldCandidate = _checkConstFieldCandidate(node, value);
+    if (fieldCandidate != null) {
+      candidates.add(fieldCandidate);
+      return;
+    }
+
     if (_isExtractableContext(node)) {
       candidates.add(
         ExtractionCandidate(
@@ -145,6 +159,45 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     }
 
     super.visitSimpleStringLiteral(node);
+  }
+
+  /// Checks if node is inside a static const String field declaration in a Strings class.
+  ExtractionCandidate? _checkConstFieldCandidate(
+    SimpleStringLiteral node,
+    String value,
+  ) {
+    final parent = node.parent;
+    if (parent is! VariableDeclaration) return null;
+    final varList = parent.parent;
+    if (varList is! VariableDeclarationList) return null;
+    final fieldDecl = varList.parent;
+    if (fieldDecl is! FieldDeclaration) return null;
+    final parentClass = fieldDecl.parent;
+    if (parentClass is! ClassDeclaration) return null;
+
+    final className = parentClass.name.lexeme;
+    if (!className.contains('Strings') &&
+        !className.contains('Errors') &&
+        !className.contains('Messages')) {
+      return null;
+    }
+
+    if (varList.isConst) {
+      final varName = parent.name.lexeme;
+      final start = fieldDecl.firstTokenAfterCommentAndMetadata.offset;
+      final length = fieldDecl.end - start;
+      return ExtractionCandidate(
+        offset: node.offset,
+        length: node.length,
+        rawValue: value,
+        reconstructedText: value,
+        customFieldGetterName: varName,
+        fieldOffset: start,
+        fieldLength: length,
+      );
+    }
+
+    return null;
   }
 
   @override
@@ -310,13 +363,16 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     return result;
   }
 
-  /// Checks if node is in an ignored context (directives, annotations, assert, logs).
+  /// Checks if node is in an ignored context (directives, annotations, assert, constructor default params, etc.).
   bool _isIgnoredContext(AstNode node) {
     AstNode? current = node.parent;
     while (current != null) {
       if (current is UriBasedDirective ||
           current is Annotation ||
           current is AssertStatement ||
+          current is AssertInitializer ||
+          current is DefaultFormalParameter ||
+          current is ConstructorInitializer ||
           current is Configuration) {
         return true;
       }
