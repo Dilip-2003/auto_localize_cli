@@ -211,7 +211,7 @@ List<ParsedFilePayload> parseFilesWorker(List<FileToParse> files) {
         constRemovals: parsedConsts,
         isPartOf: partOf != null,
         partOfUri: partOf?.uri?.stringValue,
-        partOfLibrary: partOf?.libraryName?.name,
+        partOfLibrary: partOf?.libraryName?.toSource(),
         hasHelperImport: file.source.contains('localization_helper.dart'),
         lastImportEnd: lastImport?.end,
         lastDirectiveEnd: lastDirective?.end,

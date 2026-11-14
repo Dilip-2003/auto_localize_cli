@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.2
+
+### Fixed
+- **Analyzer 14.x Compatibility for 160/160 pub points**:
+  - Expanded `analyzer` dependency constraint to `'>=6.4.0 <15.0.0'`, supporting the newest stable `analyzer 14.x` releases while maintaining 100% backward compatibility down to `6.4.0`.
+  - Adapted AST visitor for Dart 3.13 / `analyzer 14.x` AST changes:
+    - Handled `NamedArgument` in addition to legacy `NamedExpression`.
+    - Handled `BlockClassBody` hierarchy and `ClassNamePart` type name extraction.
+    - Handled `NamedType.name` alongside `NamedType.name2`.
+    - Handled `FormalParameter` and `FormalParameterDefaultClause` parameter validation.
+    - Simplified `PartOfDirective.libraryName` resolution with `.toSource()`.
+
 ## 1.0.1
 
 ### Fixed

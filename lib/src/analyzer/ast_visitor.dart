@@ -202,10 +202,13 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     if (varList is! VariableDeclarationList) return null;
     final fieldDecl = varList.parent;
     if (fieldDecl is! FieldDeclaration) return null;
-    final parentClass = fieldDecl.parent;
+    AstNode? parentClass = fieldDecl.parent;
+    if (parentClass is! ClassDeclaration) {
+      parentClass = parentClass?.parent;
+    }
     if (parentClass is! ClassDeclaration) return null;
 
-    final className = parentClass.name.lexeme;
+    final className = _getClassName(parentClass);
     if (!className.contains('Strings') &&
         !className.contains('Errors') &&
         !className.contains('Messages')) {
@@ -398,11 +401,13 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
   bool _isIgnoredContext(AstNode node) {
     AstNode? current = node.parent;
     while (current != null) {
+      final currentTypeStr = current.runtimeType.toString();
       if (current is UriBasedDirective ||
           current is Annotation ||
           current is AssertStatement ||
           current is AssertInitializer ||
-          current is DefaultFormalParameter ||
+          current is FormalParameter ||
+          currentTypeStr.contains('FormalParameter') ||
           current is ConstructorInitializer ||
           current is Configuration) {
         return true;
@@ -416,7 +421,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
       }
 
       if (current is InstanceCreationExpression) {
-        final typeName = current.constructorName.type.name2.lexeme;
+        final typeName = _getTypeName(current.constructorName.type);
         if (_ignoredInvocations.contains(typeName)) {
           return true;
         }
@@ -432,18 +437,16 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     final parent = node.parent;
 
     // Case 1: Named argument with UI parameter name
-    if (parent is NamedExpression) {
-      final label = parent.name.label.name;
-      if (_uiNamedParams.contains(label)) {
-        return true;
-      }
+    final paramLabel = _getNamedArgumentLabel(parent);
+    if (paramLabel != null && _uiNamedParams.contains(paramLabel)) {
+      return true;
     }
 
     // Case 2: Positional argument in Flutter widget (e.g. Text("Hello"), SelectableText("Hello"))
     if (parent is ArgumentList) {
       final grandParent = parent.parent;
       if (grandParent is InstanceCreationExpression) {
-        final typeName = grandParent.constructorName.type.name2.lexeme;
+        final typeName = _getTypeName(grandParent.constructorName.type);
         if (!_ignoredInvocations.contains(typeName)) {
           return true;
         }
@@ -486,9 +489,12 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         final returnType = current.returnType?.toSource();
         if (returnType == 'String') return true;
 
-        final parentClass = current.parent;
+        AstNode? parentClass = current.parent;
+        if (parentClass is! ClassDeclaration) {
+          parentClass = parentClass?.parent;
+        }
         if (parentClass is ClassDeclaration) {
-          final className = parentClass.name.lexeme;
+          final className = _getClassName(parentClass);
           if (className.contains('Strings') ||
               className.contains('Errors') ||
               className.contains('Messages') ||
@@ -510,9 +516,12 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
           final type = parentList.type?.toSource();
           if (type == 'String') return true;
         }
-        final parentClass = current.parent?.parent?.parent;
+        AstNode? parentClass = current.parent?.parent?.parent;
+        if (parentClass is! ClassDeclaration) {
+          parentClass = parentClass?.parent;
+        }
         if (parentClass is ClassDeclaration) {
-          final className = parentClass.name.lexeme;
+          final className = _getClassName(parentClass);
           if (className.contains('Strings') ||
               className.contains('Errors') ||
               className.contains('Messages')) {
@@ -567,5 +576,58 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         replacement: '',
       ),
     );
+  }
+
+  /// Safely extracts the class name across analyzer 6.x to 14.x.
+  String _getClassName(ClassDeclaration node) {
+    try {
+      final dynamic dyn = node;
+      final name = dyn.name;
+      if (name != null) {
+        return name.lexeme as String;
+      }
+    } catch (_) {}
+    try {
+      final dynamic dyn = node;
+      final namePart = dyn.namePart;
+      if (namePart != null) {
+        final typeName = namePart.typeName;
+        if (typeName != null) {
+          return typeName.lexeme as String;
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  /// Safely extracts the type name from a [NamedType] across analyzer versions.
+  String _getTypeName(NamedType type) {
+    try {
+      final dynamic dyn = type;
+      final token = dyn.name2 ?? dyn.name;
+      if (token != null) return token.lexeme as String;
+    } catch (_) {}
+    return type.toSource();
+  }
+
+  /// Safely extracts named argument or parameter name across analyzer versions.
+  String? _getNamedArgumentLabel(AstNode? node) {
+    if (node == null) return null;
+    final typeStr = node.runtimeType.toString();
+    if (typeStr.contains('NamedExpression') ||
+        typeStr.contains('NamedArgument')) {
+      try {
+        final dynamic dyn = node;
+        final name = dyn.name;
+        if (name is Token) {
+          return name.lexeme;
+        }
+        final label = name?.label;
+        if (label != null) {
+          return label.name as String;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 }

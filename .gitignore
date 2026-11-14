@@ -17,3 +17,6 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+
+# Social media / promo graphics
+assets/linkedin_*.png
