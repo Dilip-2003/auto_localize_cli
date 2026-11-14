@@ -1,7 +1,7 @@
 # auto_localize_cli
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Dilip-2003/auto_localize_cli/main/assets/banner.png" alt="auto_localize_cli banner" width="650" onerror="this.style.display='none'"/>
+  <img src="https://raw.githubusercontent.com/Dilip-2003/auto_localize_cli/main/assets/banner.png" alt="auto_localize_cli banner" width="100%"/>
 </p>
 
 <p align="center">
