@@ -327,5 +327,60 @@ dependencies:
       expect(await arbRu.exists(), isTrue);
       expect(await arbRu.readAsString(), contains('"@@locale": "ru"'));
     });
+
+    // Case 14: Pre-AST Lexical Fast-Reject Filter
+    test('14. Pre-AST Lexical Fast-Reject Filter bypasses non-UI files', () {
+      const nonUiModel = '''
+class UserDto {
+  final String id;
+  final String role;
+  const UserDto(this.id, this.role);
+}
+''';
+      expect(
+        PreAstFilter.canContainLocalizableStrings(
+          nonUiModel,
+          filePath: 'lib/models/user_dto.dart',
+        ),
+        isFalse,
+      );
+
+      const uiWidget = '''
+Widget build(BuildContext context) => const Text("Hello World");
+''';
+      expect(
+        PreAstFilter.canContainLocalizableStrings(
+          uiWidget,
+          filePath: 'lib/views/home.dart',
+        ),
+        isTrue,
+      );
+    });
+
+    // Case 15: Deterministic parallel AST candidate parsing
+    test(
+        '15. Deterministic parallel AST candidate parsing matches single-thread',
+        () async {
+      final sampleFiles = [
+        FileToParse(
+          filePath: '/app/lib/views/home.dart',
+          relativePath: 'lib/views/home.dart',
+          source: 'Widget build() => const Text("Welcome Home");',
+          statModifiedMicros: 100,
+          statSize: 100,
+        ),
+      ];
+
+      final single = await parseCandidateBatch(sampleFiles, workers: 1);
+      final parallel = await parseCandidateBatch(sampleFiles, workers: 2);
+
+      expect(parallel.length, equals(single.length));
+      expect(
+          parallel[0].candidates.length, equals(single[0].candidates.length));
+      expect(
+        parallel[0].candidates[0].rawValue,
+        equals(single[0].candidates[0].rawValue),
+      );
+    });
   });
 }

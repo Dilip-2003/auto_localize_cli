@@ -3,6 +3,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 import '../generator/arb_manager.dart';
+import 'ast_payload.dart';
 import 'ast_visitor.dart';
 
 /// Result of rewriting a single Dart file.
@@ -47,46 +48,39 @@ class CodeRewriter {
     required this.packageName,
   });
 
-  /// Rewrites the given [source] code for file at [filePath].
-  RewriteResult rewrite(String source, {required String filePath}) {
-    // Never rewrite the localization helper itself
-    final normalizedPath = filePath.replaceAll(r'\', '/');
-    if (normalizedPath.endsWith('core/localization_helper.dart')) {
+  /// Applies rewrites to a [ParsedFilePayload] that was pre-analyzed by worker isolates.
+  ///
+  /// Key generation and ARB insertion are performed sequentially on the main isolate
+  /// to ensure 100% deterministic key collision resolution.
+  RewriteResult applyParsedPayload(ParsedFilePayload payload) {
+    final normalizedPath = payload.filePath.replaceAll(r'\', '/');
+    if (normalizedPath.endsWith('core/localization_helper.dart') ||
+        normalizedPath.endsWith('localization_helper.dart')) {
       return RewriteResult(
-        path: filePath,
+        path: payload.filePath,
         modified: false,
-        newContent: source,
+        newContent: payload.source,
       );
     }
 
-    final parseResult = parseString(
-      content: source,
-      path: filePath,
-      throwIfDiagnostics: false,
-    );
-
-    final visitor = LocalizationAstVisitor(
-      keyGenerator: arbManager.keyGenerator,
-    );
-    parseResult.unit.accept(visitor);
-
-    if (visitor.candidates.isEmpty) {
+    if (payload.candidates.isEmpty) {
       return RewriteResult(
-        path: filePath,
+        path: payload.filePath,
         modified: false,
-        newContent: source,
+        newContent: payload.source,
       );
     }
 
     final edits = <SourceEdit>[];
     var extractedCount = 0;
 
-    for (final candidate in visitor.candidates) {
+    for (final candidate in payload.candidates) {
       final key = arbManager.getOrAdd(
         candidate.rawValue,
         keyText: candidate.reconstructedText,
         placeholders: candidate.placeholders,
       );
+
       if (key != null) {
         if (candidate.customFieldGetterName != null &&
             candidate.fieldOffset != null &&
@@ -120,14 +114,22 @@ class CodeRewriter {
 
     if (extractedCount == 0) {
       return RewriteResult(
-        path: filePath,
+        path: payload.filePath,
         modified: false,
-        newContent: source,
+        newContent: payload.source,
       );
     }
 
     // Add ancestor const removals
-    edits.addAll(visitor.constRemovals);
+    for (final removal in payload.constRemovals) {
+      edits.add(
+        SourceEdit(
+          offset: removal.offset,
+          length: removal.length,
+          replacement: removal.replacement,
+        ),
+      );
+    }
 
     // Sort edits bottom-to-top (descending by offset)
     edits.sort();
@@ -136,7 +138,7 @@ class CodeRewriter {
     final safeEdits = _filterOverlappingEdits(edits);
 
     // Apply edits bottom-to-top
-    var currentContent = source;
+    var currentContent = payload.source;
     for (final edit in safeEdits) {
       final before = currentContent.substring(0, edit.offset);
       final after = currentContent.substring(edit.offset + edit.length);
@@ -146,17 +148,47 @@ class CodeRewriter {
     // Ensure localization_helper import is present
     currentContent = _ensureImport(
       currentContent,
-      filePath: filePath,
-      unit: parseResult.unit,
+      filePath: payload.filePath,
+      isPartOf: payload.isPartOf,
+      partOfUri: payload.partOfUri,
+      partOfLibrary: payload.partOfLibrary,
+      hasHelperImport: payload.hasHelperImport,
+      lastImportEnd: payload.lastImportEnd,
+      lastDirectiveEnd: payload.lastDirectiveEnd,
     );
 
     return RewriteResult(
-      path: filePath,
+      path: payload.filePath,
       modified: true,
       newContent: currentContent,
       stringsExtracted: extractedCount,
-      constsRemoved: visitor.constRemovals.length,
+      constsRemoved: payload.constRemovals.length,
     );
+  }
+
+  /// Rewrites the given [source] code for file at [filePath] synchronously.
+  RewriteResult rewrite(String source, {required String filePath}) {
+    final normalizedPath = filePath.replaceAll(r'\', '/');
+    if (normalizedPath.endsWith('core/localization_helper.dart') ||
+        normalizedPath.endsWith('localization_helper.dart')) {
+      return RewriteResult(
+        path: filePath,
+        modified: false,
+        newContent: source,
+      );
+    }
+
+    final parsedList = parseFilesWorker([
+      FileToParse(
+        filePath: filePath,
+        relativePath: filePath,
+        source: source,
+        statModifiedMicros: 0,
+        statSize: 0,
+      ),
+    ]);
+
+    return applyParsedPayload(parsedList.first);
   }
 
   /// Filters out any overlapping edits to ensure clean source rewriting.
@@ -181,67 +213,60 @@ class CodeRewriter {
   String _ensureImport(
     String content, {
     required String filePath,
-    required CompilationUnit unit,
+    required bool isPartOf,
+    required String? partOfUri,
+    required String? partOfLibrary,
+    required bool hasHelperImport,
+    required int? lastImportEnd,
+    required int? lastDirectiveEnd,
   }) {
-    // Check if this is a part file
-    final partOf = unit.directives.whereType<PartOfDirective>().firstOrNull;
-    if (partOf != null) {
-      // Dart part files CANNOT contain import directives.
-      // We must inject the import into the parent library file instead.
-      _injectImportIntoParentLibrary(filePath, partOf);
+    if (isPartOf) {
+      _injectImportIntoParentLibrary(
+        filePath,
+        partOfUri: partOfUri,
+        partOfLibrary: partOfLibrary,
+      );
       return content;
     }
 
-    final helperImportTarget = 'localization_helper.dart';
-    if (content.contains(helperImportTarget)) {
+    if (hasHelperImport || content.contains('localization_helper.dart')) {
       return content;
     }
 
     final importStatement =
         "import 'package:$packageName/core/localization_helper.dart';";
 
-    // Check if there are existing import directives
-    final lastImport = unit.directives
-        .whereType<ImportDirective>()
-        .fold<ImportDirective?>(null, (prev, elem) => elem);
-
-    if (lastImport != null) {
-      // Find the end of the line containing the last import
-      final endOfImport = lastImport.end;
-      final lineBreakIndex = content.indexOf('\n', endOfImport);
+    if (lastImportEnd != null) {
+      final lineBreakIndex = content.indexOf('\n', lastImportEnd);
       final insertionOffset =
-          lineBreakIndex != -1 ? lineBreakIndex + 1 : endOfImport;
+          lineBreakIndex != -1 ? lineBreakIndex + 1 : lastImportEnd;
 
       return content.substring(0, insertionOffset) +
           '$importStatement\n' +
           content.substring(insertionOffset);
     }
 
-    // If no imports exist, place after directives (like library) or at top
-    final lastDirective =
-        unit.directives.isNotEmpty ? unit.directives.last : null;
-    if (lastDirective != null) {
-      final end = lastDirective.end;
-      final lineBreakIndex = content.indexOf('\n', end);
-      final insertionOffset = lineBreakIndex != -1 ? lineBreakIndex + 1 : end;
+    if (lastDirectiveEnd != null) {
+      final lineBreakIndex = content.indexOf('\n', lastDirectiveEnd);
+      final insertionOffset =
+          lineBreakIndex != -1 ? lineBreakIndex + 1 : lastDirectiveEnd;
       return content.substring(0, insertionOffset) +
           '\n$importStatement\n' +
           content.substring(insertionOffset);
     }
 
-    // Default to the top of the file
     return '$importStatement\n\n$content';
   }
 
   void _injectImportIntoParentLibrary(
-    String partFilePath,
-    PartOfDirective directive,
-  ) {
+    String partFilePath, {
+    required String? partOfUri,
+    required String? partOfLibrary,
+  }) {
     String? parentPath;
-    final uriString = directive.uri?.stringValue;
-    if (uriString != null) {
-      parentPath = p.normalize(p.join(p.dirname(partFilePath), uriString));
-    } else if (directive.libraryName != null) {
+    if (partOfUri != null) {
+      parentPath = p.normalize(p.join(p.dirname(partFilePath), partOfUri));
+    } else if (partOfLibrary != null) {
       final dir = Directory(p.dirname(partFilePath));
       if (dir.existsSync()) {
         for (final entity in dir.listSync()) {
@@ -249,7 +274,7 @@ class CodeRewriter {
               entity.path.endsWith('.dart') &&
               entity.path != partFilePath) {
             final text = entity.readAsStringSync();
-            if (text.contains('library ${directive.libraryName!.name}')) {
+            if (text.contains('library $partOfLibrary')) {
               parentPath = entity.path;
               break;
             }
@@ -263,8 +288,7 @@ class CodeRewriter {
     if (!parentFile.existsSync()) return;
 
     final parentContent = parentFile.readAsStringSync();
-    final helperImportTarget = 'localization_helper.dart';
-    if (parentContent.contains(helperImportTarget)) return;
+    if (parentContent.contains('localization_helper.dart')) return;
 
     final parentParsed = parseString(
       content: parentContent,
