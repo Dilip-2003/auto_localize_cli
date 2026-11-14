@@ -153,6 +153,12 @@ export '../l10n/app_localizations.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
+GlobalKey<NavigatorState>? _customNavigatorKey;
+
+/// If your project already has an existing rootNavigatorKey (e.g. from GoRouter or a custom router),
+/// register it here so `l10n` accesses localization from your existing key seamlessly:
+void setGlobalNavigatorKey(GlobalKey<NavigatorState> key) => _customNavigatorKey = key;
+
 /// Live locale notifier for dynamic runtime locale switching without restart
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier<Locale?>(null);
 
@@ -166,7 +172,8 @@ void changeAppLocale(Locale? locale) {
     el.visitChildren(markDirty);
   }
 
-  final ctx = globalNavigatorKey.currentContext as Element?;
+  final ctx = (_customNavigatorKey?.currentContext ??
+      globalNavigatorKey.currentContext) as Element?;
   if (ctx != null) {
     markDirty(ctx);
   }
@@ -177,7 +184,8 @@ void setAutoLocalizeLocale(Locale? locale) => changeAppLocale(locale);
 
 /// Context-less global getter for localized application strings.
 AppLocalizations get l10n {
-  final context = globalNavigatorKey.currentContext;
+  final context = _customNavigatorKey?.currentContext ??
+      globalNavigatorKey.currentContext;
   if (context != null) {
     final localizations = AppLocalizations.of(context);
     if (localizations != null) {

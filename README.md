@@ -79,6 +79,12 @@ export '../l10n/app_localizations.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
+GlobalKey<NavigatorState>? _customNavigatorKey;
+
+/// If your project already has an existing rootNavigatorKey (e.g. from GoRouter or a custom router),
+/// register it here so `l10n` accesses localization from your existing key seamlessly:
+void setGlobalNavigatorKey(GlobalKey<NavigatorState> key) => _customNavigatorKey = key;
+
 /// Live locale notifier for dynamic runtime locale switching without restart
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier<Locale?>(null);
 
@@ -92,7 +98,8 @@ void changeAppLocale(Locale? locale) {
     el.visitChildren(markDirty);
   }
 
-  final ctx = globalNavigatorKey.currentContext as Element?;
+  final ctx = (_customNavigatorKey?.currentContext ??
+      globalNavigatorKey.currentContext) as Element?;
   if (ctx != null) {
     markDirty(ctx);
   }
@@ -103,7 +110,8 @@ void setAutoLocalizeLocale(Locale? locale) => changeAppLocale(locale);
 
 /// Context-less global getter for localized application strings.
 AppLocalizations get l10n {
-  final context = globalNavigatorKey.currentContext;
+  final context = _customNavigatorKey?.currentContext ??
+      globalNavigatorKey.currentContext;
   if (context != null) {
     final localizations = AppLocalizations.of(context);
     if (localizations != null) {
@@ -112,7 +120,7 @@ AppLocalizations get l10n {
   }
 
   // Pre-Mount Safe Fallback: invoked when l10n is called before MaterialApp mounts
-  final targetLocale = _overrideLocale ?? ui.PlatformDispatcher.instance.locale;
+  final targetLocale = _overrideLocale ?? localeNotifier.value ?? ui.PlatformDispatcher.instance.locale;
   for (final supported in AppLocalizations.supportedLocales) {
     if (supported.languageCode == targetLocale.languageCode) {
       return lookupAppLocalizations(supported);
@@ -124,8 +132,9 @@ AppLocalizations get l10n {
 
 #### Why Developers Must Maintain This File:
 1. **The `globalNavigatorKey`:** Attaching `navigatorKey: globalNavigatorKey` to your root `MaterialApp` provides the active `BuildContext` to `l10n` from anywhere in your app without having to pass context through widget constructors or business logic layers.
-2. **Pre-Mount Safe Fallback (`lookupAppLocalizations`):** When constructing `MaterialApp(title: l10n.appTitle, ...)`, `title` is evaluated as an argument **before** the `NavigatorState` is mounted. Instead of throwing a `StateError: Localization accessed before NavigatorState context was initialized`, `l10n` safely falls back to `PlatformDispatcher.instance.locale` via `lookupAppLocalizations(locale)`.
-3. **Reactive Runtime Language Switching:** Calling `changeAppLocale(const Locale('es'))` updates `localeNotifier`, rebuilds the widget tree, and marks the active element dirty, providing instant multilingual UI updates with zero application restart.
+2. **Existing `rootNavigatorKey` Support:** If your project already has an established `rootNavigatorKey`, simply call `setGlobalNavigatorKey(yourExistingKey)` in `main()`—no need to rewrite your navigation layer!
+3. **Pre-Mount Safe Fallback (`lookupAppLocalizations`):** When constructing `MaterialApp(title: l10n.appTitle, ...)`, `title` is evaluated as an argument **before** the `NavigatorState` is mounted. Instead of throwing a `StateError: Localization accessed before NavigatorState context was initialized`, `l10n` safely falls back to `PlatformDispatcher.instance.locale` via `lookupAppLocalizations(locale)`.
+4. **Reactive Runtime Language Switching:** Calling `changeAppLocale(const Locale('es'))` updates `localeNotifier`, rebuilds the widget tree, and marks the active element dirty, providing instant multilingual UI updates with zero application restart.
 
 ---
 
@@ -232,43 +241,128 @@ When `auto_localize_cli:extract` runs on an existing project with established `.
 
 #### Scenario A: Brand New Flutter App
 ```bash
+# 1. Initialize scaffolding (creates l10n.yaml, lib/l10n/app_en.arb, lib/core/)
 dart run auto_localize_cli:init
-# Build your widgets with hardcoded strings...
+
+# 2. Build your Flutter widgets with plain, hardcoded strings...
+# Text("Welcome Home"), InputDecoration(hintText: "Enter email")...
+
+# 3. Run extract to convert all hardcoded strings into ARB keys and context-less l10n getters:
 dart run auto_localize_cli:extract
 ```
 
-#### Scenario B: Existing App with Existing `l10n.yaml` & `.arb` Files
-```bash
-# 1. Run init (it detects existing l10n.yaml and ARBs and will NOT overwrite them)
-dart run auto_localize_cli:init
-
-# 2. Attach navigatorKey in your main.dart
-MaterialApp(
-  navigatorKey: globalNavigatorKey,
-  ...
-)
-
-# 3. Run extract to convert hardcoded strings into your existing ARB catalog
-dart run auto_localize_cli:extract
-```
-
-#### Scenario C: App Using `GoRouter` or Custom Navigation
-If you use declarative routing like `GoRouter`, pass `globalNavigatorKey` into your router configuration:
+#### Scenario B: Existing App with Standard `MaterialApp`
+In your existing `main.dart`, attach `globalNavigatorKey` from `localization_helper.dart`:
 
 ```dart
-final goRouter = GoRouter(
-  navigatorKey: globalNavigatorKey,
-  routes: [...],
-);
+import 'package:flutter/material.dart';
 
-MaterialApp.router(
-  routerConfig: goRouter,
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-);
+// 1. Import localization_helper.dart (generated by `init`):
+import 'package:your_app_name/core/localization_helper.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: localeNotifier, // Live dynamic language switching without restart!
+      builder: (context, currentLocale, _) {
+        return MaterialApp(
+          navigatorKey: globalNavigatorKey, // <-- Wire key from localization_helper.dart
+          locale: currentLocale,
+          title: l10n.appTitle, // <-- Safe pre-mount fallback!
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const HomeScreen(),
+        );
+      },
+    );
+  }
+}
 ```
 
-#### Scenario D: Migrating an Old `AppConstants` String Class
+#### Scenario C: App Using `GoRouter` (Declarative Routing)
+If you use declarative routing like `GoRouter`, pass `globalNavigatorKey` directly into your `GoRouter` instance:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+// 1. Import localization_helper.dart:
+import 'package:your_app_name/core/localization_helper.dart';
+
+final goRouter = GoRouter(
+  navigatorKey: globalNavigatorKey, // <-- Pass globalNavigatorKey directly to GoRouter!
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const HomeScreen(),
+    ),
+  ],
+);
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: localeNotifier,
+      builder: (context, currentLocale, _) {
+        return MaterialApp.router(
+          routerConfig: goRouter,
+          locale: currentLocale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        );
+      },
+    );
+  }
+}
+```
+
+#### Scenario D: Projects with an Existing `rootNavigatorKey`
+If your existing project already defines its own navigation key (for example, `final rootNavigatorKey = GlobalKey<NavigatorState>();` inside `lib/routes/app_router.dart` or `lib/core/router.dart`), you have **three zero-friction options**:
+
+##### Option 1: One-Line Registration via `setGlobalNavigatorKey` (Recommended)
+In your `main()` function, simply pass your existing `rootNavigatorKey` to `setGlobalNavigatorKey`:
+```dart
+import 'package:flutter/material.dart';
+
+// 1. Import localization_helper.dart:
+import 'package:your_app_name/core/localization_helper.dart';
+// 2. Import your existing router file:
+import 'package:your_app_name/routes/app_router.dart'; // Where rootNavigatorKey is defined
+
+void main() {
+  // Wire your existing key into auto_localize:
+  setGlobalNavigatorKey(rootNavigatorKey);
+  runApp(const MyApp());
+}
+```
+Now `l10n` automatically reads the active `BuildContext` from your existing `rootNavigatorKey` with zero other changes required!
+
+##### Option 2: 1-Line Alias in `lib/core/localization_helper.dart`
+Open the generated `lib/core/localization_helper.dart` and point `globalNavigatorKey` directly to your existing key:
+```dart
+import 'package:your_app_name/routes/app_router.dart';
+
+// Alias your existing key:
+final GlobalKey<NavigatorState> globalNavigatorKey = rootNavigatorKey;
+```
+
+##### Option 3: Wire `globalNavigatorKey` into your existing router
+In your existing router file, assign `rootNavigatorKey` to `globalNavigatorKey`:
+```dart
+import 'package:your_app_name/core/localization_helper.dart';
+
+final rootNavigatorKey = globalNavigatorKey;
+```
+
+#### Scenario E: Migrating an Old `AppConstants` String Class
 If your project currently stores strings in `lib/constants/app_strings.dart`:
 1. Move those string getters/fields into `lib/core/app_strings.dart`.
 2. Run `dart run auto_localize_cli:extract`.
@@ -451,21 +545,172 @@ In multi-million-file repositories, developers only modify a handful of files pe
 
 ## Section 9: Quick Start & CLI Command Reference
 
-### Installation
+### 1. Installation
 
-Add `auto_localize_cli` to your `dev_dependencies`:
+Add `auto_localize_cli` to your `dev_dependencies` in `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
   auto_localize_cli: ^1.0.0
 ```
 
-### Command Reference
+### 2. Three-Step Quick Start Workflow
 
-| Command | Description | Options & Flags |
-|:---|:---|:---|
-| `dart run auto_localize_cli:init` | Scaffolds `l10n.yaml`, template ARB, and `lib/core/` helper files. | `--locale`, `-l`: Set primary base language (e.g. `-l ru`, `-l es`, `-l bn`). Defaults to `en`. |
-| `dart run auto_localize_cli:extract` | Extracts hardcoded strings into ARB and rewrites source files. | `--git-diff`, `-g`: Extract only from modified/untracked Git files.<br>`--no-cache`: Force full re-scan ignoring incremental cache.<br>`--workers`, `-w`: Configure parallel isolate workers (defaults to CPU cores, max 8).<br>`--locale`, `-l`: Specify target ARB locale. |
+#### Step 1: Initialize Localization
+Run the initialization wizard in your Flutter project root:
+```bash
+dart run auto_localize_cli:init
+```
+*(Or specify your base language with `--locale ru`, `--locale es`, `--locale bn`)*
+
+#### Step 2: Configure Your `MaterialApp`
+In your `main.dart`, import `localization_helper.dart` and pass `globalNavigatorKey`:
+
+```dart
+import 'package:flutter/material.dart';
+
+// 1. Import localization_helper.dart (generated automatically by `init`):
+import 'package:your_app_name/core/localization_helper.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: localeNotifier, // Live dynamic language switching without restart!
+      builder: (context, currentLocale, _) {
+        return MaterialApp(
+          navigatorKey: globalNavigatorKey, // <-- Wire key from localization_helper.dart
+          locale: currentLocale,
+          title: l10n.appTitle, // <-- Safe pre-mount fallback!
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const HomeScreen(),
+        );
+      },
+    );
+  }
+}
+```
+
+> [!TIP]
+> **Existing `rootNavigatorKey`?** If your project already defines its own navigation key, simply call `setGlobalNavigatorKey(rootNavigatorKey);` in `main()` before `runApp()`.
+
+#### Step 3: Extract Strings Automatically
+Whenever you add or modify hardcoded UI strings, run:
+```bash
+dart run auto_localize_cli:extract
+```
+
+For fast CI/CD and large monorepos, extract only from uncommitted Git files:
+```bash
+dart run auto_localize_cli:extract --git-diff
+```
+
+### 3. Comprehensive CLI Command Reference
+
+Below is the complete reference guide for every command, option, and flag available in `auto_localize_cli`.
+
+---
+
+#### 📦 Command 1: `dart run auto_localize_cli:init`
+
+Scaffolds the complete localization architecture in your Flutter project from scratch. It is 100% non-destructive and will never overwrite existing `.arb` files or custom `l10n.yaml` configurations.
+
+##### What It Does Under the Hood:
+1. **Configures `pubspec.yaml`:** Adds `flutter_localizations` (from SDK) and `intl: any` under `dependencies`, and enables `flutter: generate: true`.
+2. **Creates `l10n.yaml`:** Generates standard Flutter localization settings configured for `lib/l10n/` (respects existing `l10n.yaml` if already present).
+3. **Scaffolds Template ARB:** Creates `lib/l10n/app_<locale>.arb` with `@@locale` initialized.
+4. **Scaffolds `lib/core/localization_helper.dart`:** Creates the context-less `l10n` global getter, `globalNavigatorKey`, `setGlobalNavigatorKey` (for existing `rootNavigatorKey`s), and reactive runtime locale switcher `changeAppLocale(...)`.
+5. **Scaffolds `lib/core/app_strings.dart`:** Creates the central catalog for user-facing non-UI error messages and business strings.
+
+##### Options & Flags:
+
+| Flag / Option | Shorthand | Type | Default | Description |
+|:---|:---:|:---:|:---:|:---|
+| `--locale` | `-l` | `String` | `'en'` | Specifies the primary base language for the template ARB file and `l10n.yaml`. |
+| `--help` | `-h` | `bool` | `false` | Displays usage instructions and available options. |
+
+##### Real-World Usage Examples:
+
+```bash
+# 1. Default setup: scaffolds English base template (lib/l10n/app_en.arb)
+dart run auto_localize_cli:init
+
+# 2. Russian base setup: scaffolds Russian base template (lib/l10n/app_ru.arb)
+dart run auto_localize_cli:init --locale ru
+dart run auto_localize_cli:init -l ru
+
+# 3. Spanish base setup: scaffolds Spanish base template (lib/l10n/app_es.arb)
+dart run auto_localize_cli:init -l es
+
+# 4. Bengali base setup: scaffolds Bengali base template (lib/l10n/app_bn.arb)
+dart run auto_localize_cli:init -l bn
+```
+
+---
+
+#### ⚡ Command 2: `dart run auto_localize_cli:extract`
+
+The core AST-powered localization engine. Scans your Dart source files, extracts hardcoded strings and interpolations into your template `.arb` file, removes ancestor `const` modifiers, and rewrites source files to use compile-safe `l10n.<key>` getters.
+
+##### What It Does Under the Hood:
+1. **$O(1)$ RAM Streaming Directory Traversal:** Lazily traverses `lib/` while early-pruning hidden folders (`.git`, `.dart_tool`) and build artifacts (`build`, `android`, `ios`, `web`, `windows`, `macos`, `linux`).
+2. **Pre-AST Lexical Fast-Reject Filter:** Inspects file content in $<0.01\text{ms}$; bypasses 90%+ of non-UI files (models, DTOs, services, repositories) before AST parsing.
+3. **Sharded Incremental File-Stat Cache:** Checks 256 JSON shards inside `.dart_tool/auto_localize_cli/cache/`. Skips unchanged files in sub-millisecond time.
+4. **Multi-Core Isolate Worker Pool:** Distributes AST parsing across background isolates (`--workers`).
+5. **Deterministic Sequential Key Generation:** Resolves smart `camelCase` keys and deduplicates entries on the main isolate in sorted file-path order.
+6. **Bottom-to-Top Source Rewriting:** Applies string replacements, deletes ancestor `const` keywords, merges `AdjacentStrings`, and safely injects helper imports (including into parent libraries for `part of` files).
+7. **Automated Recompilation:** Triggers `flutter gen-l10n` to regenerate `AppLocalizations` classes immediately.
+
+##### Options & Flags:
+
+| Flag / Option | Shorthand | Type | Default | Description |
+|:---|:---:|:---:|:---:|:---|
+| `--git-diff` | `-g` | `bool` | `false` | **Sub-second $O(k)$ extraction.** Uses Git to scan ONLY modified and untracked `.dart` files under `lib/`. Perfect for active development, pre-commit hooks, and massive monorepos. |
+| `--no-cache` | | `bool` | `false` | Forces a complete re-scan and full AST parsing of every file in the project, ignoring the incremental file-stat cache. |
+| `--workers` | `-w` | `int` | CPU Cores (max 8) | Number of parallel Isolate workers allocated for concurrent AST parsing. Defaults to `Platform.numberOfProcessors.clamp(1, 8)`. |
+| `--locale` | `-l` | `String` | Auto-detected | Explicitly targets a specific ARB template file (e.g. `app_es.arb` or `app_ru.arb`). If omitted, auto-detected from `l10n.yaml`. |
+| `--help` | `-h` | `bool` | `false` | Displays usage instructions and available options. |
+
+##### Real-World Usage Examples:
+
+```bash
+# 1. Standard Extraction:
+# Incremental extraction across all project files using automatic CPU workers & cache
+dart run auto_localize_cli:extract
+
+# 2. Sub-Second Git-Diff Extraction (Recommended for everyday coding & Git hooks):
+# Only parses files you modified or created since last commit (<100ms execution)
+dart run auto_localize_cli:extract --git-diff
+dart run auto_localize_cli:extract -g
+
+# 3. Force Full Re-Scan (Bypassing Cache):
+# Forces a fresh full-repo re-scan and verifies AST idempotency
+dart run auto_localize_cli:extract --no-cache
+
+# 4. Custom Parallel Worker Count:
+# Allocate specific worker isolates (e.g. 8 workers on a high-core CI build agent)
+dart run auto_localize_cli:extract --workers 8
+dart run auto_localize_cli:extract -w 4
+
+# Run single-threaded for deterministic debugging:
+dart run auto_localize_cli:extract -w 1
+
+# 5. Extract into a Specific Base Language ARB:
+dart run auto_localize_cli:extract --locale es
+dart run auto_localize_cli:extract -l ru
+
+# 6. Combined Power Flags for Enterprise Monorepos:
+# Extract only Git-modified files with 4 parallel workers into Spanish template:
+dart run auto_localize_cli:extract -g -w 4 -l es
+
+# Full clean CI pipeline re-extraction:
+dart run auto_localize_cli:extract --no-cache -w 8
+```
 
 ---
 

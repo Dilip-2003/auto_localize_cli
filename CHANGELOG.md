@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatically configures `flutter_localizations` and `intl` in `pubspec.yaml` with `generate: true`.
   - Creates `l10n.yaml` with standard Flutter localization configuration.
   - Generates template ARB catalog (`lib/l10n/app_en.arb` or custom base locale via `--locale` / `-l`).
-  - Scaffolds context-less global getter `l10n` (`lib/core/localization_helper.dart`) with pre-mount safe fallback (`lookupAppLocalizations`).
+  - Scaffolds context-less global getter `l10n` (`lib/core/localization_helper.dart`) with pre-mount safe fallback (`lookupAppLocalizations`) and seamless existing `rootNavigatorKey` integration via `setGlobalNavigatorKey`.
   - Provides reactive runtime language switching through `localeNotifier` and `changeAppLocale(...)`.
   - Creates core error and string catalog (`lib/core/app_strings.dart`).
 
