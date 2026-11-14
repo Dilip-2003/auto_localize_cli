@@ -1,81 +1,106 @@
-# auto_localize_cli Example
+# auto_localize_cli Example & Integration Guide
 
-This directory demonstrates how `auto_localize_cli` is initialized, executed, and integrated into Flutter applications.
+Welcome to the **`auto_localize_cli`** example showcase! This guide demonstrates how to configure, run, and take full advantage of context-less localization in your Flutter applications.
 
-## Terminal Quick Start
+---
 
-In your Flutter project root:
+## ⚡ The 3-Step Workflow
 
-```bash
-# 1. Add to dev_dependencies
-flutter pub add dev:auto_localize_cli
-
-# 2. Initialize localization scaffolding (English default)
-dart run auto_localize_cli:init
-
-# Or initialize with your preferred base language (e.g. Russian, Spanish, French, Bengali)
-dart run auto_localize_cli:init --locale ru
-dart run auto_localize_cli:init -l es
-
-# 2. Extract strings into .arb and update source files bottom-to-top
-dart run auto_localize_cli:extract
-
-# 3. Sub-second extraction for changed files in Git (Recommended for everyday coding):
-dart run auto_localize_cli:extract --git-diff
-dart run auto_localize_cli:extract -g
-
-# 4. Force full re-scan bypassing incremental cache:
-dart run auto_localize_cli:extract --no-cache
-
-# 5. Parallel isolate workers:
-dart run auto_localize_cli:extract --workers 8
-dart run auto_localize_cli:extract -w 4
-
-# 6. Rebuild localization classes manually (whenever you manually edit ARB files):
-flutter gen-l10n
+```
+┌─────────────────────────────────┐
+│ 1. dart pub add dev:...         │ ➔ Adds auto_localize_cli to dev_dependencies
+└─────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────┐
+│ 2. dart run auto_localize_cli:init  ➔ Scaffolds l10n.yaml, template ARB, and
+└─────────────────────────────────┘    lib/core/localization_helper.dart
+                │
+                ▼
+┌─────────────────────────────────┐
+│ 3. dart run auto_localize_cli:extract ➔ Parses Dart AST, extracts strings to ARB,
+└─────────────────────────────────┘    removes consts, and rewrites to l10n.key!
 ```
 
 ---
 
-## Complete CLI Command Reference
+## 🔍 Before & After Showcase
 
-### `dart run auto_localize_cli:init`
-Scaffolds `l10n.yaml`, template ARB, and `lib/core/` helper files.
-- `--locale`, `-l <code >`: Sets base language (e.g. `-l ru`, `-l es`, `-l bn`). Defaults to `en`.
+### 1. Plain Hardcoded Widget (Before)
+```dart
+// Your original Flutter widget with hardcoded strings and const trees
+class ProfileHeader extends StatelessWidget {
+  const ProfileHeader({super.key});
 
-### `dart run auto_localize_cli:extract`
-Extracts hardcoded strings into ARB and rewrites source code with `l10n.<key>`.
-- `--git-diff`, `-g`: Extracts only from modified/untracked Git files ($O(k)$ sub-second time).
-- `--no-cache`: Forces a complete re-scan, bypassing the incremental file-stat cache.
-- `--workers`, `-w <int>`: Configures parallel worker Isolates (defaults to CPU cores, max 8).
-- `--locale`, `-l <code >`: Targets a specific ARB template file (e.g. `-l es`).
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Text('Welcome Back!'),
+        Text('Manage your account settings and preferences'),
+      ],
+    );
+  }
+}
+```
+
+### 2. After Running `dart run auto_localize_cli:extract`
+```dart
+// Generated and updated automatically by auto_localize_cli
+import 'package:my_app/core/localization_helper.dart';
+
+class ProfileHeader extends StatelessWidget {
+  const ProfileHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Ancestor `const` was automatically removed from Column
+    // 2. Strings were extracted into lib/l10n/app_en.arb
+    // 3. Replaced with compile-safe, context-less l10n getters!
+    return Column(
+      children: [
+        Text(l10n.welcomeBack),
+        Text(l10n.manageYourAccountSettingsAndPreferences),
+      ],
+    );
+  }
+}
+```
 
 ---
 
-## Integration Scenarios
+## 📱 Complete Working Flutter Application Example
 
-### 1. Standard `MaterialApp` Integration
+Here is a complete, copy-pasteable `main.dart` showing:
+- Passing `globalNavigatorKey` into `MaterialApp`.
+- Live runtime language switching via `localeNotifier` and `changeAppLocale`.
+- Calling `l10n` from both the UI layer and business logic (without `BuildContext`).
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 // 1. Import localization_helper.dart (generated automatically by `init`)
-import 'package:your_app_name/core/localization_helper.dart';
+import 'package:my_app/core/localization_helper.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // ValueListenableBuilder enables live language switching on the fly!
     return ValueListenableBuilder<Locale?>(
-      valueListenable: localeNotifier, // Live dynamic language switching
+      valueListenable: localeNotifier,
       builder: (context, currentLocale, _) {
         return MaterialApp(
-          navigatorKey: globalNavigatorKey, // <-- Pass key from localization_helper.dart
+          // Pass the global navigator key generated in lib/core/localization_helper.dart
+          navigatorKey: globalNavigatorKey,
           locale: currentLocale,
-          title: l10n.testApp, // <-- Safe pre-mount fallback!
+          title: l10n.myAppTitle, // Pre-mount safe fallback!
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: const HomeScreen(),
@@ -84,20 +109,130 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.homeDashboard),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Parameterized string with placeholders (e.g. "Welcome back {name}")
+            Text(
+              l10n.welcomeBackUser('Alex'),
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 16),
+            Text(l10n.selectYourPreferredLanguage),
+            const SizedBox(height: 24),
+
+            // Live language switcher buttons:
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () => changeAppLocale(const Locale('en')),
+                  child: const Text('English 🇺🇸'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => changeAppLocale(const Locale('es')),
+                  child: const Text('Español 🇪🇸'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => changeAppLocale(const Locale('bn')),
+                  child: const Text('বাংলা 🇧🇩'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 ```
 
 ---
 
-### 2. `GoRouter` Setup with `globalNavigatorKey`
+## 💡 Real-World Production Recipes
 
-When using declarative routers like `GoRouter`:
+### Recipe 1: Context-less Translations inside BLoC / Cubit
+Never pass `BuildContext` into your state management layer again:
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/core/localization_helper.dart';
 
-// 1. Import localization_helper.dart
-import 'package:your_app_name/core/localization_helper.dart';
+class AuthCubit extends Cubit<AuthState> {
+  AuthCubit() : super(AuthInitial());
+
+  Future<void> login(String email, String password) async {
+    emit(AuthLoading());
+    try {
+      await authRepository.authenticate(email, password);
+      emit(AuthSuccess());
+    } catch (e) {
+      // Access localized error strings without needing BuildContext!
+      emit(AuthError(l10n.invalidCredentialsPleaseTryAgain));
+    }
+  }
+}
+```
+
+---
+
+### Recipe 2: Context-less Translations inside Repositories or Dio Interceptors
+Display localized error notifications directly from HTTP or network interceptors:
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:my_app/core/localization_helper.dart';
+
+class ErrorInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    String userMessage;
+
+    switch (err.type) {
+      case DioExceptionType.connectionTimeout:
+        userMessage = l10n.connectionTimeoutMessage;
+        break;
+      case DioExceptionType.badResponse:
+        userMessage = l10n.serverErrorMessage;
+        break;
+      default:
+        userMessage = l10n.unexpectedErrorOccurred;
+    }
+
+    // Access current overlay or scaffold messenger via globalNavigatorKey:
+    final context = globalNavigatorKey.currentContext;
+    if (context != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userMessage)),
+      );
+    }
+
+    super.onError(err, handler);
+  }
+}
+```
+
+---
+
+### Recipe 3: Declarative Routing with `GoRouter`
+Using `GoRouter`? Simply wire `globalNavigatorKey` into the router configuration:
+
+```dart
+import 'package:go_router/go_router.dart';
+import 'package:my_app/core/localization_helper.dart';
 
 final goRouter = GoRouter(
   navigatorKey: globalNavigatorKey, // <-- Wire GoRouter directly to globalNavigatorKey
@@ -125,37 +260,31 @@ class MyApp extends StatelessWidget {
 
 ---
 
-### 3. Projects with an Existing `rootNavigatorKey`
+### Recipe 4: Existing Project with an Established `rootNavigatorKey`
+If your Flutter application already defines an existing navigation key:
 
-If your Flutter application already defines an existing `rootNavigatorKey` (e.g. in `lib/routes/app_router.dart`), you have three seamless options:
-
-#### Option A: Register your existing key via `setGlobalNavigatorKey` (Recommended)
 ```dart
-import 'package:your_app_name/core/localization_helper.dart';
-import 'package:your_app_name/routes/app_router.dart'; // Where rootNavigatorKey is defined
+import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/routes/app_router.dart'; // Where your existing rootNavigatorKey lives
 
 void main() {
-  // Register your existing rootNavigatorKey with auto_localize
+  // Register your existing rootNavigatorKey with auto_localize:
   setGlobalNavigatorKey(rootNavigatorKey);
   runApp(const MyApp());
 }
 ```
 
-#### Option B: Alias your existing key inside `lib/core/localization_helper.dart`
-Open `lib/core/localization_helper.dart` and point `globalNavigatorKey` directly to your existing key:
-```dart
-import 'package:your_app_name/routes/app_router.dart';
+---
 
-// Point globalNavigatorKey to your existing rootNavigatorKey
-final GlobalKey<NavigatorState> globalNavigatorKey = rootNavigatorKey;
-```
+## 🛠️ CLI Terminal Cheat Sheet
 
-#### Option C: Wire `globalNavigatorKey` into your existing router
-Replace `final rootNavigatorKey = GlobalKey<NavigatorState>();` in your router file with:
-```dart
-import 'package:your_app_name/core/localization_helper.dart';
-
-final rootNavigatorKey = globalNavigatorKey;
-```
-
-For complete architectural documentation, see the [main README](../README.md).
+| Task | Terminal Command |
+|---|---|
+| **Add CLI Dependency** | `flutter pub add dev:auto_localize_cli` |
+| **Initialize Scaffolding (English)** | `dart run auto_localize_cli:init` |
+| **Initialize Custom Base Language** | `dart run auto_localize_cli:init -l es` *(or `-l ru`, `-l bn`)* |
+| **Extract All Hardcoded Strings** | `dart run auto_localize_cli:extract` |
+| **Sub-Second Git-Diff Mode** | `dart run auto_localize_cli:extract --git-diff` *(or `-g`)* |
+| **Bypass Incremental Cache** | `dart run auto_localize_cli:extract --no-cache` |
+| **Configure Worker Threads** | `dart run auto_localize_cli:extract -w 4` |
+| **Manual Recompilation** | `flutter gen-l10n` |
