@@ -561,7 +561,7 @@ Or manually add it to your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  auto_localize_cli: ^1.0.2
+  auto_localize_cli: ^1.0.3
 ```
 
 ### 2. Three-Step Quick Start Workflow
