@@ -620,6 +620,19 @@ For fast CI/CD and large monorepos, extract only from uncommitted Git files:
 dart run auto_localize_cli:extract --git-diff
 ```
 
+> [!NOTE]
+> **Automatic vs. Manual `flutter gen-l10n`:**
+> `auto_localize_cli:extract` automatically attempts to run `flutter gen-l10n` at the end of extraction to immediately compile your ARB strings into `AppLocalizations`.
+> 
+> However, you can also run `flutter gen-l10n` manually at any time:
+> ```bash
+> flutter gen-l10n
+> ```
+> This is useful if:
+> - You manually edit or add new translations to your `.arb` files.
+> - You pull remote Git branches with updated `.arb` files.
+> - The CLI runs in a headless CI/CD environment or a terminal where the Flutter SDK is not directly in the shell `PATH`.
+
 ### 3. Comprehensive CLI Command Reference
 
 Below is the complete reference guide for every command, option, and flag available in `auto_localize_cli`.

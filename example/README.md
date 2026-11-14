@@ -30,6 +30,9 @@ dart run auto_localize_cli:extract --no-cache
 # 5. Parallel isolate workers:
 dart run auto_localize_cli:extract --workers 8
 dart run auto_localize_cli:extract -w 4
+
+# 6. Rebuild localization classes manually (whenever you manually edit ARB files):
+flutter gen-l10n
 ```
 
 ---
