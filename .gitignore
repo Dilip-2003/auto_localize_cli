@@ -1,11 +1,19 @@
 # Files and directories created by pub
 .dart_tool/
 .packages
-build/
 .pub/
-
-# Conventional directory for build outputs
-build/
-
-# Do not commit pubspec.lock for packages
 pubspec.lock
+
+# Build & test outputs
+build/
+coverage/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS and debug temporary files
+*.log
+.DS_Store
+Thumbs.db
