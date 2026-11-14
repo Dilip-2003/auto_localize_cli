@@ -126,7 +126,7 @@ output-localization-file: app_localizations.dart
     }
   }
 
-  /// Creates lib/l10n/app_<locale>.arb if not present.
+  /// Creates `lib/l10n/app_<locale>.arb` if not present.
   Future<void> _createInitialArb() async {
     final arbDir = Directory(p.join(projectDir.path, 'lib', 'l10n'));
     await arbDir.create(recursive: true);
