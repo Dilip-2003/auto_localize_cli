@@ -7,7 +7,10 @@ This directory demonstrates how `auto_localize_cli` is initialized, executed, an
 In your Flutter project root:
 
 ```bash
-# 1. Initialize localization scaffolding (English default)
+# 1. Add to dev_dependencies
+flutter pub add dev:auto_localize_cli
+
+# 2. Initialize localization scaffolding (English default)
 dart run auto_localize_cli:init
 
 # Or initialize with your preferred base language (e.g. Russian, Spanish, French, Bengali)

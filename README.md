@@ -547,11 +547,21 @@ In multi-million-file repositories, developers only modify a handful of files pe
 
 ### 1. Installation
 
-Add `auto_localize_cli` to your `dev_dependencies` in `pubspec.yaml`:
+Install `auto_localize_cli` into your Flutter project's `dev_dependencies`:
+
+```bash
+# Using Flutter CLI
+flutter pub add dev:auto_localize_cli
+
+# Or using Dart CLI
+dart pub add dev:auto_localize_cli
+```
+
+Or manually add it to your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  auto_localize_cli: ^1.0.0
+  auto_localize_cli: ^1.0.2
 ```
 
 ### 2. Three-Step Quick Start Workflow
