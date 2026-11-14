@@ -1,7 +1,15 @@
 name: auto_localize_cli
-description: A production-ready Flutter localization automation CLI tool.
-version: 1.1.0
-publish_to: none
+description: ⚡ Zero-config AST-powered Flutter CLI that automatically extracts hardcoded strings & interpolations into .arb files, generates smart camelCase keys, removes ancestor const modifiers, and rewrites source code to use a context-less, compile-safe l10n getter.
+version: 1.0.0
+homepage: https://github.com/Dilip-2003/auto_localize_cli
+repository: https://github.com/Dilip-2003/auto_localize_cli
+issue_tracker: https://github.com/Dilip-2003/auto_localize_cli/issues
+topics:
+  - flutter
+  - localization
+  - l10n
+  - i18n
+  - cli
 
 environment:
   sdk: ^3.0.0
