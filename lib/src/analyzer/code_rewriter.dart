@@ -7,12 +7,22 @@ import 'ast_visitor.dart';
 
 /// Result of rewriting a single Dart file.
 class RewriteResult {
+  /// The file system path of the rewritten file.
   final String path;
+
+  /// Whether the file content was modified.
   final bool modified;
+
+  /// The updated source code content.
   final String newContent;
+
+  /// Number of strings extracted into localization keys.
   final int stringsExtracted;
+
+  /// Number of ancestor const keywords removed.
   final int constsRemoved;
 
+  /// Creates a new [RewriteResult].
   const RewriteResult({
     required this.path,
     required this.modified,
@@ -25,9 +35,13 @@ class RewriteResult {
 /// Parses Dart source code with `analyzer`, coordinates ARB key generation,
 /// removes ancestor `const` keywords, and rewrites the source code bottom-to-top.
 class CodeRewriter {
+  /// The ARB manager handling key generation and persistence.
   final ArbManager arbManager;
+
+  /// The root Flutter package name used for package imports.
   final String packageName;
 
+  /// Creates a new [CodeRewriter] with [arbManager] and [packageName].
   CodeRewriter({
     required this.arbManager,
     required this.packageName,

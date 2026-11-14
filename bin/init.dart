@@ -9,6 +9,12 @@ Future<void> main(List<String> arguments) async {
       abbr: 'h',
       negatable: false,
       help: 'Show command usage instructions.',
+    )
+    ..addOption(
+      'locale',
+      abbr: 'l',
+      defaultsTo: 'en',
+      help: 'Default base locale (e.g. en, ru, es, bn, fr, de). Defaults to "en".',
     );
 
   final argResults = parser.parse(arguments);
@@ -19,6 +25,7 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final runner = InitRunner();
+  final defaultLocale = argResults['locale'] as String? ?? 'en';
+  final runner = InitRunner(defaultLocale: defaultLocale);
   await runner.run();
 }

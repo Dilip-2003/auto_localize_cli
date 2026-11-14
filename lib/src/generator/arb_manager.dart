@@ -4,12 +4,16 @@ import 'key_generator.dart';
 
 /// Manages loading, reading, writing, and deduplicating strings in ARB files.
 class ArbManager {
+  /// The target ARB file on disk.
   final File arbFile;
+
+  /// Key generator instance for deriving identifiers.
   final KeyGenerator keyGenerator;
 
   final Map<String, dynamic> _data = <String, dynamic>{};
   final Map<String, String> _reverseMap = <String, String>{};
 
+  /// Creates a new [ArbManager] for [arbFile] with optional [keyGenerator].
   ArbManager({
     required this.arbFile,
     this.keyGenerator = const KeyGenerator(),

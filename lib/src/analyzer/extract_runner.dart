@@ -6,10 +6,17 @@ import 'code_rewriter.dart';
 
 /// Coordinates the full Phase 2 extraction process across the target project.
 class ExtractRunner {
+  /// The root directory of the target Flutter project.
   final Directory projectDir;
 
-  ExtractRunner({Directory? projectDir})
-      : projectDir = projectDir ?? Directory.current;
+  /// Optional target locale to extract into.
+  final String? locale;
+
+  /// Creates a new [ExtractRunner] for [projectDir] and optional [locale].
+  ExtractRunner({
+    Directory? projectDir,
+    this.locale,
+  }) : projectDir = projectDir ?? Directory.current;
 
   /// Runs the extraction process.
   Future<void> run() async {
@@ -25,7 +32,7 @@ class ExtractRunner {
     final yaml = loadYaml(pubspecContent) as YamlMap?;
     final packageName = yaml?['name']?.toString() ?? 'app';
 
-    final arbFile = File(p.join(projectDir.path, 'lib', 'l10n', 'app_en.arb'));
+    final arbFile = await _resolveArbFile();
     final arbManager = ArbManager(arbFile: arbFile);
     await arbManager.load();
 
@@ -76,7 +83,7 @@ class ExtractRunner {
 
     // Save ARB entries
     await arbManager.save();
-    stdout.writeln('💾 Saved updated strings to lib/l10n/app_en.arb.');
+    stdout.writeln('💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.');
 
     stdout.writeln('''
 ----------------------------------------------------------------------
@@ -89,6 +96,41 @@ Extraction Summary:
 
     // Trigger flutter gen-l10n
     await _generateLocalizations();
+  }
+
+  /// Resolves the primary ARB file based on CLI locale, l10n.yaml, or existing files.
+  Future<File> _resolveArbFile() async {
+    var arbDir = 'lib/l10n';
+    var templateFile = locale != null ? 'app_$locale.arb' : 'app_en.arb';
+
+    final l10nYamlFile = File(p.join(projectDir.path, 'l10n.yaml'));
+    if (await l10nYamlFile.exists()) {
+      try {
+        final yamlContent = await l10nYamlFile.readAsString();
+        final l10nYaml = loadYaml(yamlContent) as YamlMap?;
+        if (l10nYaml != null) {
+          if (l10nYaml.containsKey('arb-dir')) {
+            arbDir = l10nYaml['arb-dir'].toString();
+          }
+          if (locale == null && l10nYaml.containsKey('template-arb-file')) {
+            templateFile = l10nYaml['template-arb-file'].toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    final targetFile = File(p.join(projectDir.path, arbDir, templateFile));
+    if (!await targetFile.exists()) {
+      final dir = Directory(p.join(projectDir.path, arbDir));
+      if (await dir.exists()) {
+        await for (final entity in dir.list()) {
+          if (entity is File && entity.path.endsWith('.arb')) {
+            return entity;
+          }
+        }
+      }
+    }
+    return targetFile;
   }
 
   /// Determines if a file should be skipped during scanning.

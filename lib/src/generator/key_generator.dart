@@ -81,7 +81,7 @@ class KeyGenerator {
 
     // Must contain at least one alphabetic letter
     // Strings with only digits, symbols, currency, punctuation (e.g. "2026", "100%", "+91-9876543210", "₹500", "---") are ignored!
-    if (!RegExp(r'[a-zA-Z\u00C0-\u024F\u0980-\u09FF]').hasMatch(trimmed)) {
+    if (!RegExp(r'[\p{Letter}]', unicode: true).hasMatch(trimmed)) {
       return true;
     }
 
@@ -108,7 +108,7 @@ class KeyGenerator {
     }
 
     // Single punctuation / separator
-    if (RegExp(r'^[^a-zA-Z0-9]+$').hasMatch(trimmed)) {
+    if (!RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(trimmed)) {
       return true;
     }
 
@@ -121,7 +121,20 @@ class KeyGenerator {
     return false;
   }
 
-  /// Step 2: Split string into words and numbers, removing punctuation and splitting camelCase.
+  static const Map<String, String> _cyrillicMap = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+    'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+    'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+    'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+    'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+    'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+  };
+
+  /// Step 2: Split string into words and numbers, removing punctuation, transliterating Cyrillic, and splitting camelCase.
   List<String> _tokenize(String text) {
     // Normalize contractions and possessives: "It's" -> "Its", "user's" -> "user"
     final normalized = text
@@ -129,15 +142,26 @@ class KeyGenerator {
         .replaceAll(RegExp(r"['’]s\b"), '')
         .replaceAll(RegExp(r"['’]"), '');
 
+    // Transliterate Cyrillic to Latin for valid Dart identifier generation
+    final buffer = StringBuffer();
+    for (final char in normalized.split('')) {
+      buffer.write(_cyrillicMap[char] ?? char);
+    }
+    final transliterated = buffer.toString();
+
     // Split camelCase boundaries (e.g. userName -> user Name, totalAmount -> total Amount)
-    final splitCamel = normalized.replaceAllMapped(
+    final splitCamel = transliterated.replaceAllMapped(
       RegExp(r'([a-z0-9])([A-Z])'),
       (m) => '${m[1]} ${m[2]}',
     );
 
     // Replace non-alphanumeric characters with spaces
     final cleaned = splitCamel.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), ' ').trim();
-    if (cleaned.isEmpty) return [];
+    if (cleaned.isEmpty) {
+      // Deterministic fallback for non-Latin scripts (e.g. Chinese, Bengali, Hindi, Arabic)
+      final hash = text.hashCode.abs() % 100000;
+      return ['msg$hash'];
+    }
 
     final tokens = <String>[];
     for (final part in cleaned.split(RegExp(r'\s+'))) {
@@ -157,7 +181,7 @@ class KeyGenerator {
     final result = List<String>.from(tokens);
     if (RegExp(r'^\d').hasMatch(result.first)) {
       final firstWordIdx = result.indexWhere(
-        (t) => RegExp(r'^[a-zA-Z\u00C0-\u024F\u0980-\u09FF]').hasMatch(t),
+        (t) => RegExp(r'^\p{Letter}', unicode: true).hasMatch(t),
       );
 
       if (firstWordIdx != -1) {

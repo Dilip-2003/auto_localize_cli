@@ -5,10 +5,17 @@ import 'package:yaml_edit/yaml_edit.dart';
 
 /// Handles the initialization and scaffolding for Phase 1.
 class InitRunner {
+  /// The root directory of the target Flutter project.
   final Directory projectDir;
 
-  InitRunner({Directory? projectDir})
-      : projectDir = projectDir ?? Directory.current;
+  /// The default locale to scaffold in l10n.yaml and ARB catalogs (e.g. "en", "ru", "es").
+  final String defaultLocale;
+
+  /// Creates a new [InitRunner] for [projectDir] and [defaultLocale].
+  InitRunner({
+    Directory? projectDir,
+    this.defaultLocale = 'en',
+  }) : projectDir = projectDir ?? Directory.current;
 
   /// Runs the onboarding & scaffolding process.
   Future<void> run() async {
@@ -26,7 +33,7 @@ class InitRunner {
     stdout.writeln('⚙️  Creating l10n.yaml configuration...');
     await _createL10nYaml();
 
-    stdout.writeln('🌐 Scaffolding template ARB file (lib/l10n/app_en.arb)...');
+    stdout.writeln('🌐 Scaffolding template ARB file (lib/l10n/app_$defaultLocale.arb)...');
     await _createInitialArb();
 
     stdout.writeln('🧩 Creating context-less global getter (lib/core/localization_helper.dart)...');
@@ -103,22 +110,22 @@ Next Steps:
   Future<void> _createL10nYaml() async {
     final l10nFile = File(p.join(projectDir.path, 'l10n.yaml'));
     if (!await l10nFile.exists()) {
-      const content = '''arb-dir: lib/l10n
-template-arb-file: app_en.arb
+      final content = '''arb-dir: lib/l10n
+template-arb-file: app_$defaultLocale.arb
 output-localization-file: app_localizations.dart
 ''';
       await l10nFile.writeAsString(content);
     }
   }
 
-  /// Creates lib/l10n/app_en.arb if not present.
+  /// Creates lib/l10n/app_<locale>.arb if not present.
   Future<void> _createInitialArb() async {
     final arbDir = Directory(p.join(projectDir.path, 'lib', 'l10n'));
     await arbDir.create(recursive: true);
 
-    final arbFile = File(p.join(arbDir.path, 'app_en.arb'));
+    final arbFile = File(p.join(arbDir.path, 'app_$defaultLocale.arb'));
     if (!await arbFile.exists()) {
-      const initialJson = '{\n  "@@locale": "en"\n}\n';
+      final initialJson = '{\n  "@@locale": "$defaultLocale"\n}\n';
       await arbFile.writeAsString(initialJson);
     }
   }

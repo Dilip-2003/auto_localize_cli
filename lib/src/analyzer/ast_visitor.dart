@@ -5,10 +5,16 @@ import '../generator/key_generator.dart';
 
 /// Represents a single text modification (either a string replacement or const removal).
 class SourceEdit implements Comparable<SourceEdit> {
+  /// Start character offset in the source file.
   final int offset;
+
+  /// Length of characters to replace.
   final int length;
+
+  /// Replacement string content.
   final String replacement;
 
+  /// Creates a new [SourceEdit] modification.
   const SourceEdit({
     required this.offset,
     required this.length,
@@ -39,16 +45,34 @@ class SourceEdit implements Comparable<SourceEdit> {
 
 /// Information about an extracted string literal candidate.
 class ExtractionCandidate {
+  /// Start offset of the candidate literal.
   final int offset;
+
+  /// Length of the candidate literal in characters.
   final int length;
-  final String rawValue; // ARB template, e.g. "Hello {userName}"
-  final String reconstructedText; // For key generation, e.g. "Hello userName"
-  final List<String> placeholders; // e.g. ["userName"]
-  final List<String> arguments; // e.g. ["user.name"]
-  final String? customFieldGetterName; // e.g. "constantError"
+
+  /// ARB template string, e.g. "Hello {userName}".
+  final String rawValue;
+
+  /// Normalized text used for key generation, e.g. "Hello userName".
+  final String reconstructedText;
+
+  /// Extracted placeholder identifiers, e.g. ["userName"].
+  final List<String> placeholders;
+
+  /// Raw Dart argument expressions to pass, e.g. ["user.name"].
+  final List<String> arguments;
+
+  /// Custom getter name if converting a static const field.
+  final String? customFieldGetterName;
+
+  /// Start offset of the parent field declaration if applicable.
   final int? fieldOffset;
+
+  /// Length of the parent field declaration if applicable.
   final int? fieldLength;
 
+  /// Creates a new [ExtractionCandidate].
   const ExtractionCandidate({
     required this.offset,
     required this.length,
@@ -64,10 +88,15 @@ class ExtractionCandidate {
 
 /// AST Visitor that finds UI & core strings and tracks ancestor const tokens.
 class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
+  /// Key generator instance for filter and validation rules.
   final KeyGenerator keyGenerator;
 
+  /// All identified extraction candidates in this compilation unit.
   final List<ExtractionCandidate> candidates = [];
+
   final Set<int> _seenConstOffsets = {};
+
+  /// All ancestor const tokens marked for deletion.
   final List<SourceEdit> constRemovals = [];
 
   static const Set<String> _ignoredInvocations = {
@@ -127,7 +156,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
 
     final value = node.stringValue;
     if (value == null ||
-        !RegExp(r'[a-zA-Z\u00C0-\u024F\u0980-\u09FF]').hasMatch(value) ||
+        !RegExp(r'[\p{Letter}]', unicode: true).hasMatch(value) ||
         keyGenerator.shouldIgnore(value)) {
       super.visitSimpleStringLiteral(node);
       return;
@@ -204,7 +233,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
   void visitAdjacentStrings(AdjacentStrings node) {
     final value = node.stringValue;
     if (value == null ||
-        !RegExp(r'[a-zA-Z\u00C0-\u024F\u0980-\u09FF]').hasMatch(value) ||
+        !RegExp(r'[\p{Letter}]', unicode: true).hasMatch(value) ||
         keyGenerator.shouldIgnore(value)) {
       super.visitAdjacentStrings(node);
       return;
@@ -253,7 +282,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     final staticText = staticBuffer.toString();
 
     // Ignore Rule: If static parts contain NO alphabetic characters, skip!
-    if (!RegExp(r'[a-zA-Z\u00C0-\u024F\u0980-\u09FF]').hasMatch(staticText)) {
+    if (!RegExp(r'[\p{Letter}]', unicode: true).hasMatch(staticText)) {
       super.visitStringInterpolation(node);
       return;
     }

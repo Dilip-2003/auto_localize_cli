@@ -265,5 +265,38 @@ class CustomButton extends StatelessWidget {
       expect(result.newContent, contains('"Title cannot be empty"'));
       expect(result.newContent, contains('"Context must be mounted"'));
     });
+
+    // Case 12: Multilingual / Russian Cyrillic transliteration support
+    test('12. Cyrillic and international text generates valid Latin camelCase Dart getters', () {
+      expect(keyGen.generateKey('Привет мир'), equals('privetMir'));
+      expect(keyGen.generateKey('Служба поддержки'), equals('sluzhbaPodderzhki'));
+      expect(keyGen.generateKey('24 7 Служба поддержки доступна'), equals('sluzhba247Dostupna'));
+    });
+
+    // Case 13: Custom default locale in InitRunner
+    test('13. InitRunner scaffolds custom locale template ARB and l10n.yaml', () async {
+      final customDir = Directory('${tempDir.path}/custom_ru_app');
+      await customDir.create(recursive: true);
+
+      final pubspec = File('${customDir.path}/pubspec.yaml');
+      await pubspec.writeAsString('''name: custom_ru_app
+environment:
+  sdk: ^3.0.0
+dependencies:
+  flutter:
+    sdk: flutter
+''');
+
+      final initRunner = InitRunner(projectDir: customDir, defaultLocale: 'ru');
+      await initRunner.run();
+
+      final l10nYaml = File('${customDir.path}/l10n.yaml');
+      expect(await l10nYaml.exists(), isTrue);
+      expect(await l10nYaml.readAsString(), contains('template-arb-file: app_ru.arb'));
+
+      final arbRu = File('${customDir.path}/lib/l10n/app_ru.arb');
+      expect(await arbRu.exists(), isTrue);
+      expect(await arbRu.readAsString(), contains('"@@locale": "ru"'));
+    });
   });
 }
