@@ -276,6 +276,26 @@ void main() {
 
 ---
 
+### Recipe 5: Adding More Languages in 2 Minutes (AI Translation Workflow)
+
+Once `auto_localize_cli:extract` compiles all hardcoded strings into `lib/l10n/app_en.arb`, adding any new language is as simple as:
+
+1. **Copy `app_en.arb`** and paste it into ChatGPT, Claude, or Gemini:
+   > *"Translate this Flutter ARB file into Spanish (`es`). Keep all JSON keys and `{placeholder}` tokens unchanged."*
+2. **Save the response** as `lib/l10n/app_es.arb` (or `app_bn.arb`, `app_ar.arb`, etc.).
+3. **Run recompilation:**
+   ```bash
+   flutter gen-l10n
+   ```
+4. **Switch language on the fly:**
+   ```dart
+   changeAppLocale(const Locale('es'));
+   ```
+
+No widget rewrites, no manual `.tr` extensions, and zero `BuildContext` boilerplate!
+
+---
+
 ## 🛠️ CLI Terminal Cheat Sheet
 
 | Task | Terminal Command |

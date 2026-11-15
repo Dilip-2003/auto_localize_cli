@@ -633,6 +633,31 @@ dart run auto_localize_cli:extract --git-diff
 > - You pull remote Git branches with updated `.arb` files.
 > - The CLI runs in a headless CI/CD environment or a terminal where the Flutter SDK is not directly in the shell `PATH`.
 
+#### Step 4: Adding More Languages (The 2-Minute AI Translation Workflow)
+
+Once `auto_localize_cli:extract` finishes, all your hardcoded strings are neatly organized into your primary base template (`lib/l10n/app_en.arb`) with clean camelCase keys and ICU placeholders.
+
+To support any other language (e.g. Spanish, French, Bengali, Arabic, German, Hindi):
+
+1. **Copy your base ARB:** Open `lib/l10n/app_en.arb` and copy its contents.
+2. **Translate with AI:** Paste the content into ChatGPT, Claude, Gemini, or your translation management tool with a prompt like:
+   > *"Translate this Flutter .arb file into Spanish (`es`). Maintain all keys and `{placeholder}` tokens exactly as they are."*
+3. **Save the translated file:** Create a new ARB file matching the locale code in `lib/l10n/`:
+   - `lib/l10n/app_es.arb` (Spanish)
+   - `lib/l10n/app_bn.arb` (Bengali)
+   - `lib/l10n/app_ar.arb` (Arabic)
+   - `lib/l10n/app_de.arb` (German)
+4. **Recompile localization classes:** In your terminal, run:
+   ```bash
+   flutter gen-l10n
+   ```
+5. **Switch language live at runtime:** In your Flutter code, switch languages anytime with zero app restart:
+   ```dart
+   changeAppLocale(const Locale('es'));
+   ```
+
+That's it! Your entire application is now multilingual across any number of languages without ever manually touching widget code or passing `BuildContext` again.
+
 ### 3. Comprehensive CLI Command Reference
 
 Below is the complete reference guide for every command, option, and flag available in `auto_localize_cli`.
