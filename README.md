@@ -53,22 +53,72 @@ It acts as an automated compiler bridge between your raw Flutter widgets and mul
 
 ---
 
+## ⚡ Quick Start: From Zero to Multilingual in 4 Steps
+
+### Step 1: Install
+Add `auto_localize_cli` to your Flutter project's `dev_dependencies`:
+```bash
+flutter pub add dev:auto_localize_cli
+```
+
+### Step 2: Initialize
+Scaffold your localization architecture:
+```bash
+dart run auto_localize_cli:init
+```
+*(Or specify a custom base language: `-l es`, `-l ru`, `-l bn`)*
+
+This creates `l10n.yaml`, `lib/l10n/app_en.arb`, and `lib/core/localization_helper.dart`.
+
+### Step 3: Connect `MaterialApp` (One-Time Setup)
+In your `lib/main.dart`, pass `globalNavigatorKey`:
+```dart
+import 'package:your_app/core/localization_helper.dart';
+
+MaterialApp(
+  navigatorKey: globalNavigatorKey, // <-- Enables context-less l10n everywhere!
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: const HomeScreen(),
+)
+```
+
+### Step 4: Extract All Hardcoded Strings
+Whenever you write Flutter widgets with hardcoded text, run:
+```bash
+dart run auto_localize_cli:extract
+```
+The CLI automatically:
+- Extracts all text into `lib/l10n/app_en.arb` with clean camelCase keys.
+- Deletes ancestor `const` keywords so your widgets compile with zero errors.
+- Rewrites `Text('Welcome Back')` ➔ `Text(l10n.welcomeBack)`.
+
+### Step 5: Add Other Languages in 2 Minutes (AI Workflow)
+1. Copy `lib/l10n/app_en.arb` into ChatGPT / Claude:  
+   *"Translate this Flutter ARB into Spanish (`es`), keeping keys untouched."*
+2. Save as `lib/l10n/app_es.arb`.
+3. Run `flutter gen-l10n`.
+4. Switch languages live: `changeAppLocale(const Locale('es'))`.
+
+---
+
 ## 📖 Table of Contents
 1. [🎯 Why `auto_localize_cli`? (The Core Problem & Solution)](#-why-auto_localize_cli-the-core-problem--solution)
-2. [Section 1: Overview & Architectural Comparison](#section-1-overview--architectural-comparison)
-2. [Section 2: Deep Dive into the `lib/core/` Architecture & Why It Must Be Maintained](#section-2-deep-dive-into-the-libcore-architecture--why-it-must-be-maintained)
+2. [⚡ Quick Start: From Zero to Multilingual in 4 Steps](#-quick-start-from-zero-to-multilingual-in-4-steps)
+3. [Section 1: Overview & Architectural Comparison](#section-1-overview--why-auto_localize_cli-exists)
+4. [Section 2: Deep Dive into the `lib/core/` Architecture & Why It Must Be Maintained](#section-2-deep-dive-into-the-libcore-architecture--why-it-must-be-maintained)
    - [A. `lib/core/localization_helper.dart` (The Context-Less Engine)](#a-libcorelocalization_helperdart-the-context-less-engine)
    - [B. `lib/core/app_strings.dart` (Centralized Non-UI & Business Logic Strings)](#b-libcoreapp_stringsdart-centralized-non-ui--business-logic-strings)
-3. [Section 3: Using in Existing / Partially Localized Projects & Folder Structure Guide](#section-3-using-in-existing--partially-localized-projects--folder-structure-guide)
+5. [Section 3: Using in Existing / Partially Localized Projects & Folder Structure Guide](#section-3-using-in-existing--partially-localized-projects--folder-structure-guide)
    - [A. Mandatory vs. Configurable Folder Structure](#a-mandatory-vs-configurable-folder-structure)
    - [B. 100% Non-Destructive Guarantee for Existing `.arb` Files](#b-100-non-destructive-guarantee-for-existing-arb-files)
    - [C. Step-by-Step Migration Playbook](#c-step-by-step-migration-playbook)
-4. [Section 4: Where the CLI Extracts Strings From (Dual-Mode AST Whitelist)](#section-4-where-the-cli-extracts-strings-from-dual-mode-ast-whitelist)
-5. [Section 5: The 7-Step Smart `camelCase` Key Generation Algorithm](#section-5-the-7-step-smart-camelcase-key-generation-algorithm)
-6. [Section 6: Advanced String Interpolation & Parameterized `.arb` Generation](#section-6-advanced-string-interpolation--parameterized-arb-generation)
-7. [Section 7: Compiler-Grade Edge Cases & Smart Ignore Rules](#section-7-compiler-grade-edge-cases--smart-ignore-rules)
-8. [Section 8: Enterprise Monorepo Scalability (100K to 50M+ Files Architecture)](#section-8-enterprise-monorepo-scalability-100k-to-50m-files-architecture)
-9. [Section 9: Quick Start & CLI Command Reference](#section-9-quick-start--cli-command-reference)
+6. [Section 4: Where the CLI Extracts Strings From (Dual-Mode AST Whitelist)](#section-4-where-the-cli-extracts-strings-from-dual-mode-ast-whitelist)
+7. [Section 5: The 7-Step Smart `camelCase` Key Generation Algorithm](#section-5-the-7-step-smart-camelcase-key-generation-algorithm)
+8. [Section 6: Advanced String Interpolation & Parameterized `.arb` Generation](#section-6-advanced-string-interpolation--parameterized-arb-generation)
+9. [Section 7: Compiler-Grade Edge Cases & Smart Ignore Rules](#section-7-compiler-grade-edge-cases--smart-ignore-rules)
+10. [Section 8: Enterprise Monorepo Scalability (100K to 50M+ Files Architecture)](#section-8-enterprise-monorepo-scalability-100k-to-50m-files-architecture)
+11. [Section 9: Detailed CLI Command Reference & Flags](#section-9-quick-start--cli-command-reference)
 
 ---
 
@@ -597,7 +647,7 @@ Or manually add it to your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  auto_localize_cli: ^1.0.4
+  auto_localize_cli: ^1.0.5
 ```
 
 ### 2. Three-Step Quick Start Workflow

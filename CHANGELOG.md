@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.5
+
+### Example & Documentation Overhaul
+- **Production-Grade Flutter Example Application**:
+  - Overhauled `example/` into a complete, standalone, runnable Flutter UI application.
+  - Implemented real-world demonstrations of context-less `l10n.<key>`, dynamic runtime language switching (`changeAppLocale`), parameterized translations (`welcomeBackUser`), and non-UI usage in repositories (`AuthRepository`).
+  - Added standalone `example/pubspec.yaml`, `example/l10n.yaml`, and generated localization delegates achieving **0 issues** on `flutter analyze`.
+- **Top-of-README Quick Start Guide**:
+  - Moved the streamlined **"⚡ Quick Start: From Zero to Multilingual in 4 Steps"** directly to the top of `README.md`, clarifying installation, one-time `MaterialApp` connection, AST extraction, and AI-assisted multilingual translation.
+- **Version Updates**:
+  - Bumped package dependency examples and documentation to `^1.0.5`.
+
 ## 1.0.4
 
 ### Documentation

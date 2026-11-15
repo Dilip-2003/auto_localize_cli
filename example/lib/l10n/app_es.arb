@@ -1,0 +1,18 @@
+{
+  "@@locale": "es",
+  "appTitle": "Demo de AutoLocalize",
+  "dashboardTitle": "Panel de Inicio",
+  "welcomeBackUser": "Bienvenido {name}, tienes {count} notificaciones",
+  "@welcomeBackUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectLanguage": "Selecciona tu idioma preferido:",
+  "networkError": "Por favor revisa tu conexión a internet"
+}
