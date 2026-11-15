@@ -18,8 +18,44 @@
 
 ---
 
+## 🎯 Why auto_localize_cli? (The Core Problem & Solution)
+
+### The Real Problem in Flutter Localization
+Localizing a Flutter app has always been a painful, repetitive chore. The hardest part is **not translating words**—modern AI (ChatGPT, Claude, Gemini) or translation tools can translate text into 50+ languages in seconds. 
+
+The real nightmare is the **manual codebase surgery**:
+1. Scanning through 50+ screens and hundreds of widgets to hunt down every hardcoded string.
+2. Manually inventing hundreds of unique `camelCase` keys and copy-pasting them into `.arb` files.
+3. Breaking ancestor `const` trees across your entire UI and dealing with red compile errors.
+4. Passing `BuildContext` deep into controllers, BLoCs, and repositories just to show an error message.
+
+---
+
+### Our Solution & The 2-Step Workflow
+`auto_localize_cli` exists to eliminate this painful manual work permanently. 
+
+It acts as an automated compiler bridge between your raw Flutter widgets and multilingual `.arb` catalogs:
+
+1. **Step 1: Single-Command AST Extraction**
+   Run `dart run auto_localize_cli:extract`. The CLI uses the Dart Analyzer AST to:
+   - Extract all hardcoded strings into your base template (`lib/l10n/app_en.arb`) with smart `camelCase` keys.
+   - Automatically clean ancestor `const` modifiers so your widgets compile with zero errors.
+   - Rewrite your widgets to use a clean, context-less `l10n.<key>` getter anywhere in your app (UI, BLoCs, Repositories).
+
+2. **Step 2: Instant Multilingual Expansion with AI**
+   Now that all your app's strings are centralized into one clean `app_en.arb` file:
+   - Copy `app_en.arb` and paste it into ChatGPT / Claude / Gemini with:  
+     *"Translate this Flutter ARB into Spanish (`es`), preserving all keys and `{placeholder}` tokens."*
+   - Save the result as `lib/l10n/app_es.arb` (or `app_bn.arb`, `app_ar.arb`, etc.).
+   - Run `flutter gen-l10n`.
+
+**Result:** Your app is now 100% multilingual across as many languages as you want—with zero manual widget editing, zero `BuildContext` boilerplate, and zero compile errors!
+
+---
+
 ## 📖 Table of Contents
-1. [Section 1: Overview & Why `auto_localize_cli` Exists](#section-1-overview--why-auto_localize_cli-exists)
+1. [🎯 Why `auto_localize_cli`? (The Core Problem & Solution)](#-why-auto_localize_cli-the-core-problem--solution)
+2. [Section 1: Overview & Architectural Comparison](#section-1-overview--architectural-comparison)
 2. [Section 2: Deep Dive into the `lib/core/` Architecture & Why It Must Be Maintained](#section-2-deep-dive-into-the-libcore-architecture--why-it-must-be-maintained)
    - [A. `lib/core/localization_helper.dart` (The Context-Less Engine)](#a-libcorelocalization_helperdart-the-context-less-engine)
    - [B. `lib/core/app_strings.dart` (Centralized Non-UI & Business Logic Strings)](#b-libcoreapp_stringsdart-centralized-non-ui--business-logic-strings)
@@ -561,7 +597,7 @@ Or manually add it to your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  auto_localize_cli: ^1.0.3
+  auto_localize_cli: ^1.0.4
 ```
 
 ### 2. Three-Step Quick Start Workflow

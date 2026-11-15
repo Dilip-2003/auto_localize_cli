@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.4
+
+### Documentation
+- Added high-priority **"Why auto_localize_cli? (The Core Problem & Solution)"** architectural overview to the very top of `README.md`.
+- Documented the complete 2-step AST extraction and AI-assisted multilingual translation workflow.
+- Updated installation instructions across documentation to `^1.0.4`.
+
 ## 1.0.3
 
 ### Documentation & Polishing

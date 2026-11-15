@@ -1,6 +1,6 @@
 name: auto_localize_cli
 description: AST-powered Flutter CLI that extracts hardcoded strings into .arb files, removes ancestor consts, and rewrites code to use context-less l10n getters.
-version: 1.0.3
+version: 1.0.4
 homepage: https://github.com/Dilip-2003/auto_localize_cli
 repository: https://github.com/Dilip-2003/auto_localize_cli
 issue_tracker: https://github.com/Dilip-2003/auto_localize_cli/issues
