@@ -14,7 +14,7 @@ Welcome to the **`auto_localize_cli`** example showcase! This guide demonstrates
                 ▼
 ┌─────────────────────────────────┐
 │ 2. dart run auto_localize_cli:init  ➔ Scaffolds l10n.yaml, template ARB, and
-└─────────────────────────────────┘    lib/core/localization_helper.dart
+└─────────────────────────────────┘    lib/core/localization/localization_helper.dart
                 │
                 ▼
 ┌─────────────────────────────────┐
@@ -47,7 +47,7 @@ class ProfileHeader extends StatelessWidget {
 ### 2. After Running `dart run auto_localize_cli:extract`
 ```dart
 // Generated and updated automatically by auto_localize_cli
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({super.key});
@@ -81,7 +81,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 // 1. Import localization_helper.dart (generated automatically by `init`)
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 
 void main() {
   runApp(const MyApp());
@@ -97,7 +97,7 @@ class MyApp extends StatelessWidget {
       valueListenable: localeNotifier,
       builder: (context, currentLocale, _) {
         return MaterialApp(
-          // Pass the global navigator key generated in lib/core/localization_helper.dart
+          // Pass the global navigator key generated in lib/core/localization/localization_helper.dart
           navigatorKey: globalNavigatorKey,
           locale: currentLocale,
           title: l10n.myAppTitle, // Pre-mount safe fallback!
@@ -169,7 +169,7 @@ Never pass `BuildContext` into your state management layer again:
 
 ```dart
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   AuthCubit() : super(AuthInitial());
@@ -194,7 +194,7 @@ Display localized error notifications directly from HTTP or network interceptors
 
 ```dart
 import 'package:dio/dio.dart';
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 
 class ErrorInterceptor extends Interceptor {
   @override
@@ -232,7 +232,7 @@ Using `GoRouter`? Simply wire `globalNavigatorKey` into the router configuration
 
 ```dart
 import 'package:go_router/go_router.dart';
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 
 final goRouter = GoRouter(
   navigatorKey: globalNavigatorKey, // <-- Wire GoRouter directly to globalNavigatorKey
@@ -264,7 +264,7 @@ class MyApp extends StatelessWidget {
 If your Flutter application already defines an existing navigation key:
 
 ```dart
-import 'package:my_app/core/localization_helper.dart';
+import 'package:my_app/core/localization/localization_helper.dart';
 import 'package:my_app/routes/app_router.dart'; // Where your existing rootNavigatorKey lives
 
 void main() {

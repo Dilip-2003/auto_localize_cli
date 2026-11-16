@@ -79,7 +79,7 @@ class AppStrings {
       expect(
         PreAstFilter.canContainLocalizableStrings(
           appStrings,
-          filePath: 'lib/core/app_strings.dart',
+          filePath: 'lib/core/localization/app_strings.dart',
         ),
         isTrue,
       );
@@ -118,8 +118,10 @@ output-localization-file: app_localizations.dart
         arbFile.writeAsStringSync('{"@@locale": "en"}');
 
         // Setup localization_helper.dart
+        final localizationDir =
+            Directory(p.join(coreDir.path, 'localization'))..createSync();
         final helperFile =
-            File(p.join(coreDir.path, 'localization_helper.dart'));
+            File(p.join(localizationDir.path, 'localization_helper.dart'));
         helperFile.writeAsStringSync('''
 import 'package:flutter/material.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
@@ -217,8 +219,8 @@ Widget build() => const Text("Welcome Back to Your Dashboard");
           statSize: 200,
         ),
         FileToParse(
-          filePath: '/app/lib/core/app_strings.dart',
-          relativePath: 'lib/core/app_strings.dart',
+          filePath: '/app/lib/core/localization/app_strings.dart',
+          relativePath: 'lib/core/localization/app_strings.dart',
           source: '''
 class AppStrings {
   static String get timeoutError => "Connection to the host has timed out";

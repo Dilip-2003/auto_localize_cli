@@ -85,6 +85,7 @@ class DirectoryCrawler {
         normalized.endsWith('.gr.dart') ||
         normalized.endsWith('.mocks.dart') ||
         normalized.contains('/app_localizations') ||
+        normalized.endsWith('core/localization/localization_helper.dart') ||
         normalized.endsWith('core/localization_helper.dart') ||
         normalized.endsWith('localization_helper.dart')) {
       return true;

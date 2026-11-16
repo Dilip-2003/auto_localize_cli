@@ -54,7 +54,8 @@ class CodeRewriter {
   /// to ensure 100% deterministic key collision resolution.
   RewriteResult applyParsedPayload(ParsedFilePayload payload) {
     final normalizedPath = payload.filePath.replaceAll(r'\', '/');
-    if (normalizedPath.endsWith('core/localization_helper.dart') ||
+    if (normalizedPath.endsWith('core/localization/localization_helper.dart') ||
+        normalizedPath.endsWith('core/localization_helper.dart') ||
         normalizedPath.endsWith('localization_helper.dart')) {
       return RewriteResult(
         path: payload.filePath,
@@ -169,7 +170,8 @@ class CodeRewriter {
   /// Rewrites the given [source] code for file at [filePath] synchronously.
   RewriteResult rewrite(String source, {required String filePath}) {
     final normalizedPath = filePath.replaceAll(r'\', '/');
-    if (normalizedPath.endsWith('core/localization_helper.dart') ||
+    if (normalizedPath.endsWith('core/localization/localization_helper.dart') ||
+        normalizedPath.endsWith('core/localization_helper.dart') ||
         normalizedPath.endsWith('localization_helper.dart')) {
       return RewriteResult(
         path: filePath,
@@ -234,7 +236,7 @@ class CodeRewriter {
     }
 
     final importStatement =
-        "import 'package:$packageName/core/localization_helper.dart';";
+        "import 'package:$packageName/core/localization/localization_helper.dart';";
 
     if (lastImportEnd != null) {
       final lineBreakIndex = content.indexOf('\n', lastImportEnd);
@@ -296,7 +298,7 @@ class CodeRewriter {
       throwIfDiagnostics: false,
     );
     final importStatement =
-        "import 'package:$packageName/core/localization_helper.dart';";
+        "import 'package:$packageName/core/localization/localization_helper.dart';";
 
     final lastImport = parentParsed.unit.directives
         .whereType<ImportDirective>()

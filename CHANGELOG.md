@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.6
+
+### Architecture & Scaffolding Isolation
+- **Dedicated Subfolder Isolation (`lib/core/localization/`)**:
+  - Scaffolds `localization_helper.dart` and `app_strings.dart` inside a dedicated subfolder: `lib/core/localization/` instead of directly at the root of `lib/core/`.
+  - Ensures clean separation and zero directory pollution for enterprise apps with existing `lib/core/` architectures (e.g. `core/network/`, `core/constants/`, `core/theme/`).
+  - Updated AST code rewriter, directory crawler, and test suites to automatically inject and respect `lib/core/localization/localization_helper.dart`.
+- **Comprehensive `init` & `extract` Engine Logic Documentation**:
+  - Added detailed under-the-hood engine breakdowns for both `dart run auto_localize_cli:init` and `dart run auto_localize_cli:extract` directly into the Quick Start and Installation guides in `README.md` and `lib/auto_localize_cli.dart`.
+  - Documented AST parsing stages, dual-mode whitelisting, ancestor `const` stripping, and 0 KB release bundle footprint.
+- **Example App Updates**:
+  - Updated `example/` structure and imports to `lib/core/localization/`.
+
 ## 1.0.5
 
 ### Example & Documentation Overhaul

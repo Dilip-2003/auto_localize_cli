@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/widgets.dart';
-import '../l10n/generated/app_localizations.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Global key to access the root navigator state from anywhere.
 GlobalKey<NavigatorState> _globalNavigatorKey = GlobalKey<NavigatorState>();

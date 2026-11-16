@@ -60,14 +60,15 @@ flutter:
 
       // Check localization_helper.dart
       final helperFile =
-          File('${tempDir.path}/lib/core/localization_helper.dart');
+          File('${tempDir.path}/lib/core/localization/localization_helper.dart');
       expect(await helperFile.exists(), isTrue);
       final helperContent = await helperFile.readAsString();
       expect(helperContent, contains('globalNavigatorKey'));
       expect(helperContent, contains('AppLocalizations get l10n'));
 
       // Check app_strings.dart
-      final appStringsFile = File('${tempDir.path}/lib/core/app_strings.dart');
+      final appStringsFile =
+          File('${tempDir.path}/lib/core/localization/app_strings.dart');
       expect(await appStringsFile.exists(), isTrue);
     });
   });

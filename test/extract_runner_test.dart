@@ -63,8 +63,9 @@ class MyApp extends StatelessWidget {
 }
 ''');
 
-      // lib/core/app_strings.dart
-      final appStringsFile = File('${tempDir.path}/lib/core/app_strings.dart');
+      // lib/core/localization/app_strings.dart
+      final appStringsFile =
+          File('${tempDir.path}/lib/core/localization/app_strings.dart');
       await appStringsFile.parent.create(recursive: true);
       await appStringsFile.writeAsString('''class AppStrings {
   AppStrings._();
@@ -122,12 +123,12 @@ class MyApp extends StatelessWidget {
       expect(
           mainContent,
           contains(
-              "import 'package:test_sample/core/localization_helper.dart';"));
+              "import 'package:test_sample/core/localization/localization_helper.dart';"));
 
-      // 3. Verify lib/core/app_strings.dart
-      final stringsContent =
-          await File('${tempDir.path}/lib/core/app_strings.dart')
-              .readAsString();
+      // 3. Verify lib/core/localization/app_strings.dart
+      final stringsContent = await File(
+              '${tempDir.path}/lib/core/localization/app_strings.dart')
+          .readAsString();
       expect(
         stringsContent,
         contains(
@@ -135,7 +136,8 @@ class MyApp extends StatelessWidget {
       );
       expect(
         stringsContent,
-        contains("import 'package:test_sample/core/localization_helper.dart';"),
+        contains(
+            "import 'package:test_sample/core/localization/localization_helper.dart';"),
       );
     });
   });

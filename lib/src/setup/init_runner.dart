@@ -40,11 +40,11 @@ class InitRunner {
     await _createInitialArb();
 
     stdout.writeln(
-        '🧩 Creating context-less global getter (lib/core/localization_helper.dart)...');
+        '🧩 Creating context-less global getter (lib/core/localization/localization_helper.dart)...');
     await _createLocalizationHelper();
 
     stdout.writeln(
-        '📝 Creating core string class (lib/core/app_strings.dart)...');
+        '📝 Creating core string class (lib/core/localization/app_strings.dart)...');
     await _createAppStrings();
 
     stdout.writeln('''
@@ -56,7 +56,7 @@ Next Steps:
 1. Run `flutter pub get` to fetch localization dependencies.
 2. In your `main.dart`, configure your MaterialApp with:
 
-   import 'package:$packageName/core/localization_helper.dart';
+   import 'package:$packageName/core/localization/localization_helper.dart';
    import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
    MaterialApp(
@@ -138,18 +138,20 @@ output-localization-file: app_localizations.dart
     }
   }
 
-  /// Creates lib/core/localization_helper.dart for context-less global getter `l10n`.
+  /// Creates lib/core/localization/localization_helper.dart for context-less global getter `l10n`.
   Future<void> _createLocalizationHelper() async {
-    final coreDir = Directory(p.join(projectDir.path, 'lib', 'core'));
-    await coreDir.create(recursive: true);
+    final localizationDir =
+        Directory(p.join(projectDir.path, 'lib', 'core', 'localization'));
+    await localizationDir.create(recursive: true);
 
-    final helperFile = File(p.join(coreDir.path, 'localization_helper.dart'));
+    final helperFile =
+        File(p.join(localizationDir.path, 'localization_helper.dart'));
     if (!await helperFile.exists()) {
       const helperContent = '''import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 
-export '../l10n/app_localizations.dart';
+export '../../l10n/app_localizations.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -207,12 +209,14 @@ AppLocalizations get l10n {
     }
   }
 
-  /// Creates lib/core/app_strings.dart for central error and string definitions.
+  /// Creates lib/core/localization/app_strings.dart for central error and string definitions.
   Future<void> _createAppStrings() async {
-    final coreDir = Directory(p.join(projectDir.path, 'lib', 'core'));
-    await coreDir.create(recursive: true);
+    final localizationDir =
+        Directory(p.join(projectDir.path, 'lib', 'core', 'localization'));
+    await localizationDir.create(recursive: true);
 
-    final appStringsFile = File(p.join(coreDir.path, 'app_strings.dart'));
+    final appStringsFile =
+        File(p.join(localizationDir.path, 'app_strings.dart'));
     if (!await appStringsFile.exists()) {
       const content = '''import 'localization_helper.dart';
 

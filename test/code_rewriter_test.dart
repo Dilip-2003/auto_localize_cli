@@ -61,7 +61,8 @@ class MyView extends StatelessWidget {
       // Verify auto-import
       expect(
         result.newContent,
-        contains("import 'package:test_app/core/localization_helper.dart';"),
+        contains(
+            "import 'package:test_app/core/localization/localization_helper.dart';"),
       );
 
       // Verify ARB entries
@@ -79,8 +80,8 @@ class AppStrings {
 }
 ''';
 
-      final result =
-          rewriter.rewrite(source, filePath: 'lib/core/app_strings.dart');
+      final result = rewriter.rewrite(source,
+          filePath: 'lib/core/localization/app_strings.dart');
 
       expect(result.modified, isTrue);
       expect(result.stringsExtracted, equals(1));
@@ -91,7 +92,8 @@ class AppStrings {
       );
       expect(
         result.newContent,
-        contains("import 'package:test_app/core/localization_helper.dart';"),
+        contains(
+            "import 'package:test_app/core/localization/localization_helper.dart';"),
       );
       expect(arbManager.existingKeys, contains('pleaseCheckYourConnection'));
     });
