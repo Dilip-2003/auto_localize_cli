@@ -16,9 +16,12 @@ void main() {
       }
     });
 
-    test('1. ARB load failure throws FormatException without wiping existing ARB', () async {
+    test(
+        '1. ARB load failure throws FormatException without wiping existing ARB',
+        () async {
       final arbFile = File('${tempDir.path}/app_en.arb');
-      await arbFile.writeAsString('<<<<<<< HEAD\n{"hello": "world"}\n=======\n{"hello": "earth"}\n>>>>>>> branch');
+      await arbFile.writeAsString(
+          '<<<<<<< HEAD\n{"hello": "world"}\n=======\n{"hello": "earth"}\n>>>>>>> branch');
 
       final arbManager = ArbManager(arbFile: arbFile);
       expect(() async => await arbManager.load(), throwsFormatException);
@@ -28,7 +31,8 @@ void main() {
       expect(content, contains('<<<<<<< HEAD'));
     });
 
-    test('2. Literal unparameterized braces are escaped as \'{braces}\' in ARB', () async {
+    test('2. Literal unparameterized braces are escaped as \'{braces}\' in ARB',
+        () async {
       final arbFile = File('${tempDir.path}/app_en.arb');
       final arbManager = ArbManager(arbFile: arbFile);
       await arbManager.load();
@@ -62,20 +66,26 @@ void main() {
       expect(chineseKey, startsWith('msg'));
     });
 
-    test('4. Flutter AppLocalizations reserved keywords get disambiguated with Text suffix', () {
+    test(
+        '4. Flutter AppLocalizations reserved keywords get disambiguated with Text suffix',
+        () {
       const keyGen = KeyGenerator();
-      expect(keyGen.generateKey('Supported Locales'), equals('supportedLocalesText'));
-      expect(keyGen.generateKey('Localizations Delegates'), equals('localizationsDelegatesText'));
+      expect(keyGen.generateKey('Supported Locales'),
+          equals('supportedLocalesText'));
+      expect(keyGen.generateKey('Localizations Delegates'),
+          equals('localizationsDelegatesText'));
       expect(keyGen.generateKey('Delegate'), equals('delegateText'));
       expect(keyGen.generateKey('Default'), equals('defaultText'));
       expect(keyGen.generateKey('Class'), equals('classText'));
     });
 
-    test('5. Non-UI invocations (Exception, Color, Uri) are not extracted', () async {
+    test('5. Non-UI invocations (Exception, Color, Uri) are not extracted',
+        () async {
       final arbFile = File('${tempDir.path}/app_en.arb');
       final arbManager = ArbManager(arbFile: arbFile);
       await arbManager.load();
-      final rewriter = CodeRewriter(arbManager: arbManager, packageName: 'my_app');
+      final rewriter =
+          CodeRewriter(arbManager: arbManager, packageName: 'my_app');
 
       const source = '''
 import 'package:flutter/material.dart';
@@ -92,11 +102,13 @@ void test() {
       expect(result.newContent, equals(source));
     });
 
-    test('6. Top-level const variable with Text converts const to final', () async {
+    test('6. Top-level const variable with Text converts const to final',
+        () async {
       final arbFile = File('${tempDir.path}/app_en.arb');
       final arbManager = ArbManager(arbFile: arbFile);
       await arbManager.load();
-      final rewriter = CodeRewriter(arbManager: arbManager, packageName: 'my_app');
+      final rewriter =
+          CodeRewriter(arbManager: arbManager, packageName: 'my_app');
 
       const source = '''
 import 'package:flutter/material.dart';
@@ -112,10 +124,13 @@ const topLevelWidgets = [
     });
 
     test('7. ExtractRunner Dry-Run mode does not write to disk', () async {
-      final libDir = Directory('${tempDir.path}/lib')..createSync(recursive: true);
-      final l10nDir = Directory('${tempDir.path}/lib/l10n')..createSync(recursive: true);
+      final libDir = Directory('${tempDir.path}/lib')
+        ..createSync(recursive: true);
+      final l10nDir = Directory('${tempDir.path}/lib/l10n')
+        ..createSync(recursive: true);
       final pubspec = File('${tempDir.path}/pubspec.yaml');
-      await pubspec.writeAsString('name: test_dry_run\nenvironment:\n  sdk: ^3.0.0\n');
+      await pubspec
+          .writeAsString('name: test_dry_run\nenvironment:\n  sdk: ^3.0.0\n');
 
       final arb = File('${l10nDir.path}/app_en.arb');
       await arb.writeAsString('{\n  "@@locale": "en"\n}\n');
@@ -139,20 +154,26 @@ Widget build(BuildContext context) => const Text('Dry Run Text');
       expect(arbContent, isNot(contains('dryRunText')));
     });
 
-    test('8. ExtractRunner single-file targeting only processes specified file', () async {
-      final libDir = Directory('${tempDir.path}/lib')..createSync(recursive: true);
-      final l10nDir = Directory('${tempDir.path}/lib/l10n')..createSync(recursive: true);
+    test('8. ExtractRunner single-file targeting only processes specified file',
+        () async {
+      final libDir = Directory('${tempDir.path}/lib')
+        ..createSync(recursive: true);
+      final l10nDir = Directory('${tempDir.path}/lib/l10n')
+        ..createSync(recursive: true);
       final pubspec = File('${tempDir.path}/pubspec.yaml');
-      await pubspec.writeAsString('name: test_single\nenvironment:\n  sdk: ^3.0.0\n');
+      await pubspec
+          .writeAsString('name: test_single\nenvironment:\n  sdk: ^3.0.0\n');
 
       final arb = File('${l10nDir.path}/app_en.arb');
       await arb.writeAsString('{\n  "@@locale": "en"\n}\n');
 
       final targetFile = File('${libDir.path}/target.dart');
-      await targetFile.writeAsString("import 'package:flutter/material.dart';\nWidget f() => const Text('Target File Text');\n");
+      await targetFile.writeAsString(
+          "import 'package:flutter/material.dart';\nWidget f() => const Text('Target File Text');\n");
 
       final untouchedFile = File('${libDir.path}/other.dart');
-      const untouchedCode = "import 'package:flutter/material.dart';\nWidget g() => const Text('Untouched File Text');\n";
+      const untouchedCode =
+          "import 'package:flutter/material.dart';\nWidget g() => const Text('Untouched File Text');\n";
       await untouchedFile.writeAsString(untouchedCode);
 
       final runner = ExtractRunner(

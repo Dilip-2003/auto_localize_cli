@@ -118,8 +118,8 @@ output-localization-file: app_localizations.dart
         arbFile.writeAsStringSync('{"@@locale": "en"}');
 
         // Setup localization_helper.dart
-        final localizationDir =
-            Directory(p.join(coreDir.path, 'localization'))..createSync();
+        final localizationDir = Directory(p.join(coreDir.path, 'localization'))
+          ..createSync();
         final helperFile =
             File(p.join(localizationDir.path, 'localization_helper.dart'));
         helperFile.writeAsStringSync('''

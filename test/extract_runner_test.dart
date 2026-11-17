@@ -126,9 +126,9 @@ class MyApp extends StatelessWidget {
               "import 'package:test_sample/core/localization/localization_helper.dart';"));
 
       // 3. Verify lib/core/localization/app_strings.dart
-      final stringsContent = await File(
-              '${tempDir.path}/lib/core/localization/app_strings.dart')
-          .readAsString();
+      final stringsContent =
+          await File('${tempDir.path}/lib/core/localization/app_strings.dart')
+              .readAsString();
       expect(
         stringsContent,
         contains(

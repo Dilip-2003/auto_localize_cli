@@ -59,8 +59,8 @@ flutter:
       expect(arbContent, contains('"@@locale": "en"'));
 
       // Check localization_helper.dart
-      final helperFile =
-          File('${tempDir.path}/lib/core/localization/localization_helper.dart');
+      final helperFile = File(
+          '${tempDir.path}/lib/core/localization/localization_helper.dart');
       expect(await helperFile.exists(), isTrue);
       final helperContent = await helperFile.readAsString();
       expect(helperContent, contains('globalNavigatorKey'));

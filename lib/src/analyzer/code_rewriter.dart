@@ -378,9 +378,13 @@ class CodeRewriter {
     }
 
     try {
-      for (final entity in libDir.listSync(recursive: true, followLinks: false)) {
-        if (entity is File && p.basename(entity.path) == 'localization_helper.dart') {
-          return p.relative(entity.path, from: libDir.path).replaceAll(r'\', '/');
+      for (final entity
+          in libDir.listSync(recursive: true, followLinks: false)) {
+        if (entity is File &&
+            p.basename(entity.path) == 'localization_helper.dart') {
+          return p
+              .relative(entity.path, from: libDir.path)
+              .replaceAll(r'\', '/');
         }
       }
     } catch (_) {}

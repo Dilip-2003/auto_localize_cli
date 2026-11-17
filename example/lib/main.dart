@@ -54,7 +54,8 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.language_rounded, size: 64, color: Colors.indigo),
+              const Icon(Icons.language_rounded,
+                  size: 64, color: Colors.indigo),
               const SizedBox(height: 24),
 
               // Parameterized string with placeholders (name, count)

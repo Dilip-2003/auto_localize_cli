@@ -39,7 +39,8 @@ class ArbManager {
           if (decoded is Map<String, dynamic>) {
             _data.addAll(decoded);
           } else {
-            throw const FormatException('ARB file content must be a JSON object.');
+            throw const FormatException(
+                'ARB file content must be a JSON object.');
           }
         } catch (e) {
           stderr.writeln(

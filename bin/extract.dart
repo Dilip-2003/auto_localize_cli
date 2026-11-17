@@ -19,13 +19,15 @@ Future<void> main(List<String> arguments) async {
     ..addOption(
       'file',
       abbr: 'f',
-      help: 'Target a single Dart file to extract (bypasses full directory crawl).',
+      help:
+          'Target a single Dart file to extract (bypasses full directory crawl).',
     )
     ..addFlag(
       'dry-run',
       abbr: 'd',
       negatable: false,
-      help: 'Preview strings to extract and files to modify without writing changes to disk.',
+      help:
+          'Preview strings to extract and files to modify without writing changes to disk.',
     )
     ..addFlag(
       'git-diff',

@@ -496,7 +496,8 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         final target = grandParent.target;
 
         // PascalCase invocations (e.g. Text("..."), SelectableText("...")) or common UI helpers
-        if ((RegExp(r'^[A-Z]').hasMatch(name) && !_ignoredInvocations.contains(name)) ||
+        if ((RegExp(r'^[A-Z]').hasMatch(name) &&
+                !_ignoredInvocations.contains(name)) ||
             _uiHelperMethods.contains(name)) {
           return true;
         }

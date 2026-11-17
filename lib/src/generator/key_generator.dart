@@ -402,7 +402,8 @@ class KeyGenerator {
   /// Step 6: Suffix with 'Text' if the key matches a Dart or Flutter reserved keyword or starts with digit.
   String _resolveReservedKeywords(String key) {
     final lower = key.toLowerCase();
-    if (_dartKeywords.contains(lower) || _flutterReservedKeywords.contains(lower)) {
+    if (_dartKeywords.contains(lower) ||
+        _flutterReservedKeywords.contains(lower)) {
       return '${key}Text';
     }
     if (RegExp(r'^\d').hasMatch(key)) {
