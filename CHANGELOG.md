@@ -37,8 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pre-mount `l10n` fallback now evaluates exact script codes and country codes (e.g. `zh_Hant` vs `zh_Hans`).
 - **Test Isolation Helper**:
   - Scaffolds `@visibleForTesting void resetLocalizationHelperForTesting()` for clean test teardowns.
-- **Multi-OS GitHub Actions CI**:
-  - Added `.github/workflows/ci.yml` matrix testing across Linux, Windows, and macOS on stable and beta Dart SDK channels.
 
 ## 1.0.6
 
