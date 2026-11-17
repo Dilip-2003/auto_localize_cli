@@ -13,6 +13,9 @@ class IncrementalCacheManager {
   /// Whether incremental caching is active.
   final bool enabled;
 
+  /// Signature of the target ARB catalog to ensure cache invalidation on external ARB edits.
+  String arbSignature;
+
   /// Cache directory containing the shards.
   late final Directory cacheDir;
 
@@ -23,6 +26,7 @@ class IncrementalCacheManager {
   IncrementalCacheManager({
     required this.projectDir,
     this.enabled = true,
+    this.arbSignature = '',
   }) {
     cacheDir = Directory(
       p.join(projectDir.path, '.dart_tool', 'auto_localize_cli', 'cache'),
@@ -74,7 +78,8 @@ class IncrementalCacheManager {
     final cachedVal = shard[normalized];
     if (cachedVal == null) return false;
 
-    final currentVal = '${stat.modified.microsecondsSinceEpoch}:${stat.size}';
+    final currentVal =
+        '$arbSignature:${stat.modified.microsecondsSinceEpoch}:${stat.size}';
     return cachedVal == currentVal;
   }
 
@@ -84,11 +89,32 @@ class IncrementalCacheManager {
     final normalized = relativePath.replaceAll(r'\', '/');
     final shardKey = _getShardKey(normalized);
     final shard = _loadShard(shardKey);
-    final val = '${stat.modified.microsecondsSinceEpoch}:${stat.size}';
+    final val =
+        '$arbSignature:${stat.modified.microsecondsSinceEpoch}:${stat.size}';
 
     if (shard[normalized] != val) {
       shard[normalized] = val;
       _dirtyShards.add(shardKey);
+    }
+  }
+
+  /// Updates the ARB signature (e.g. after ARB is saved to disk) and refreshes
+  /// all in-memory entries to keep cache valid for the next run.
+  void updateArbSignature(String newSignature) {
+    if (arbSignature == newSignature) return;
+    final oldSignature = arbSignature;
+    arbSignature = newSignature;
+    for (final entry in _shards.entries) {
+      final shardKey = entry.key;
+      final shard = entry.value;
+      for (final fileKey in shard.keys.toList()) {
+        final val = shard[fileKey]!;
+        if (val.startsWith('$oldSignature:')) {
+          shard[fileKey] =
+              '$newSignature:${val.substring(oldSignature.length + 1)}';
+          _dirtyShards.add(shardKey);
+        }
+      }
     }
   }
 

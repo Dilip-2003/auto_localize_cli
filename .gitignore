@@ -6,6 +6,8 @@ pubspec.lock
 
 # Build & test outputs
 build/
+example/build/
+example/.dart_tool/
 coverage/
 
 # IDE files

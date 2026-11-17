@@ -35,7 +35,7 @@ Localizing a Flutter application is traditionally a slow, error-prone manual pro
 
 ---
 
-## ⚡ Quick Start (4 Simple Steps)
+## ⚡ Quick Start (5 Simple Steps)
 
 ### Step 1: Install
 Add `auto_localize_cli` to your project's `dev_dependencies`:
@@ -101,6 +101,22 @@ class MyApp extends StatelessWidget {
   }
 }
 ```
+
+> **Using GoRouter or declarative routing?**
+> Pass `globalNavigatorKey` into your `GoRouter` instance:
+> ```dart
+> final router = GoRouter(
+>   navigatorKey: globalNavigatorKey, // <-- Pass globalNavigatorKey here
+>   routes: [...],
+> );
+> 
+> MaterialApp.router(
+>   routerConfig: router,
+>   locale: currentLocale,
+>   localizationsDelegates: AppLocalizations.localizationsDelegates,
+>   supportedLocales: AppLocalizations.supportedLocales,
+> );
+> ```
 
 ---
 
@@ -208,6 +224,52 @@ dart run auto_localize_cli extract [options]
 | `--workers` | `-w` | CPU cores (max 8) | Number of parallel worker isolates for AST parsing. |
 | `--locale` | `-l` | Auto-detected | Specific target ARB file to extract into. Defaults to template in `l10n.yaml`. |
 | `--help` | `-h` | | Show command help. |
+
+---
+
+### 🎯 Practical Use Cases & Shorthand Cheat Sheet
+
+Don't run a full codebase scan every time! Use these shorthands designed for common everyday workflows:
+
+#### 1. Test On A Single File First (`-f`)
+Adopting `auto_localize_cli` on an existing production app? Start small and safe by testing on one specific screen or widget without touching the rest of your codebase:
+```bash
+auto_localize_cli extract -f lib/features/home/home_screen.dart
+```
+
+#### 2. Preview Changes With Zero Risk (`-d` / `--dry-run`)
+Want to verify which strings will be extracted and see exactly which files will be modified before anything is written to disk or ARB?
+```bash
+# Dry run across the entire project:
+auto_localize_cli extract -d
+
+# Or combine with a single file to inspect only that file:
+auto_localize_cli extract -f lib/screens/login_view.dart -d
+```
+
+#### 3. Everyday Coding & Git Pre-Commit Hooks (`-g` / `--git-diff`)
+While developing a feature, you only care about files you recently touched. The `-g` flag runs a **sub-second $O(k)$ extraction** scanning *only* Git-staged, modified, or newly created files:
+```bash
+# Instant extraction on your active work:
+auto_localize_cli extract -g
+```
+> **Pro Tip:** Add `auto_localize_cli extract -g` to your Git pre-commit hook to automatically localize new strings before every commit!
+
+#### 4. Target A Custom Base Language (`-l`)
+If your primary app language is Spanish (`es`), French (`fr`), or Bengali (`bn`):
+```bash
+auto_localize_cli extract -l es
+```
+
+#### 5. Hyper-Scale Enterprise Repositories (`-w` & `--no-cache`)
+For massive monorepos or enterprise codebases (thousands of Dart files):
+```bash
+# Maximize CPU isolate concurrency with 8 parallel workers:
+auto_localize_cli extract -w 8
+
+# Force a 100% clean rebuild bypassing incremental file-stat cache:
+auto_localize_cli extract --no-cache
+```
 
 ---
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'l10n/generated/app_localizations.dart';
 
-// Generated automatically by `dart run auto_localize_cli:init`:
+// Generated automatically by `dart run auto_localize_cli init`:
 import 'core/localization/localization_helper.dart';
 
 void main() {

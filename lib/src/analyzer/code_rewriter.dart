@@ -156,6 +156,7 @@ class CodeRewriter {
       hasHelperImport: payload.hasHelperImport,
       lastImportEnd: payload.lastImportEnd,
       lastDirectiveEnd: payload.lastDirectiveEnd,
+      firstDeclarationOffset: payload.firstDeclarationOffset,
     );
 
     return RewriteResult(
@@ -221,6 +222,7 @@ class CodeRewriter {
     required bool hasHelperImport,
     required int? lastImportEnd,
     required int? lastDirectiveEnd,
+    int? firstDeclarationOffset,
   }) {
     if (isPartOf) {
       _injectImportIntoParentLibrary(
@@ -254,6 +256,12 @@ class CodeRewriter {
       return content.substring(0, insertionOffset) +
           '\n$importStatement\n' +
           content.substring(insertionOffset);
+    }
+
+    if (firstDeclarationOffset != null && firstDeclarationOffset > 0) {
+      return content.substring(0, firstDeclarationOffset) +
+          '$importStatement\n\n' +
+          content.substring(firstDeclarationOffset);
     }
 
     return '$importStatement\n\n$content';
@@ -323,7 +331,14 @@ class CodeRewriter {
             '\n$importStatement\n' +
             parentContent.substring(insertionOffset);
       } else {
-        newParentContent = '$importStatement\n\n$parentContent';
+        final firstDecl = parentParsed.unit.declarations.firstOrNull;
+        if (firstDecl != null && firstDecl.offset > 0) {
+          newParentContent = parentContent.substring(0, firstDecl.offset) +
+              '$importStatement\n\n' +
+              parentContent.substring(firstDecl.offset);
+        } else {
+          newParentContent = '$importStatement\n\n$parentContent';
+        }
       }
     }
 

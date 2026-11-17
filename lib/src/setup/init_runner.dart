@@ -57,7 +57,6 @@ Next Steps:
 2. In your `main.dart`, configure your MaterialApp with:
 
    import 'package:$packageName/core/localization/localization_helper.dart';
-   import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
    MaterialApp(
      navigatorKey: globalNavigatorKey,
@@ -88,7 +87,7 @@ Next Steps:
       ], {
         'flutter': {'sdk': 'flutter'},
         'flutter_localizations': {'sdk': 'flutter'},
-        'intl': '^0.19.0',
+        'intl': 'any',
       });
     } else {
       if (!dependencies.containsKey('flutter_localizations')) {
@@ -96,7 +95,7 @@ Next Steps:
             ['dependencies', 'flutter_localizations'], {'sdk': 'flutter'});
       }
       if (!dependencies.containsKey('intl')) {
-        editor.update(['dependencies', 'intl'], '^0.19.0');
+        editor.update(['dependencies', 'intl'], 'any');
       }
     }
 
@@ -121,6 +120,8 @@ Next Steps:
       final content = '''arb-dir: lib/l10n
 template-arb-file: app_$defaultLocale.arb
 output-localization-file: app_localizations.dart
+output-dir: lib/l10n
+synthetic-package: false
 ''';
       await l10nFile.writeAsString(content);
     }
@@ -172,17 +173,6 @@ void changeAppLocale(Locale? locale) {
   void apply() {
     localeNotifier.value = locale;
     _overrideLocale = locale;
-
-    void markDirty(Element el) {
-      el.markNeedsBuild();
-      el.visitChildren(markDirty);
-    }
-
-    final ctx = (_customNavigatorKey?.currentContext ??
-        globalNavigatorKey.currentContext) as Element?;
-    if (ctx != null) {
-      markDirty(ctx);
-    }
   }
 
   final binding = WidgetsBinding.instance;

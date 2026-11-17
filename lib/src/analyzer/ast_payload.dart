@@ -133,6 +133,9 @@ class ParsedFilePayload {
   /// Character end position of the last directive.
   final int? lastDirectiveEnd;
 
+  /// Start offset of the first class, variable, or top-level declaration.
+  final int? firstDeclarationOffset;
+
   /// Creates a [ParsedFilePayload].
   const ParsedFilePayload({
     required this.filePath,
@@ -148,6 +151,7 @@ class ParsedFilePayload {
     required this.hasHelperImport,
     this.lastImportEnd,
     this.lastDirectiveEnd,
+    this.firstDeclarationOffset,
   });
 }
 
@@ -173,6 +177,7 @@ List<ParsedFilePayload> parseFilesWorker(List<FileToParse> files) {
     final lastDirective = parseResult.unit.directives.isNotEmpty
         ? parseResult.unit.directives.last
         : null;
+    final firstDecl = parseResult.unit.declarations.firstOrNull;
 
     final parsedCandidates = visitor.candidates
         .map(
@@ -215,6 +220,7 @@ List<ParsedFilePayload> parseFilesWorker(List<FileToParse> files) {
         hasHelperImport: file.source.contains('localization_helper.dart'),
         lastImportEnd: lastImport?.end,
         lastDirectiveEnd: lastDirective?.end,
+        firstDeclarationOffset: firstDecl?.offset,
       ),
     );
   }

@@ -299,6 +299,11 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitStringInterpolation(StringInterpolation node) {
+    if (node.isRaw) {
+      super.visitStringInterpolation(node);
+      return;
+    }
+
     if (_isIgnoredContext(node)) {
       super.visitStringInterpolation(node);
       return;
@@ -519,15 +524,11 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     return false;
   }
 
-  /// Checks if node is the expression or return value of a getter or String method.
+  /// Checks if node is the expression or return value of a member in a Strings/Errors/Messages/Constants class.
   bool _isInsideStringMethodOrGetter(AstNode node) {
     AstNode? current = node.parent;
     while (current != null) {
       if (current is MethodDeclaration) {
-        if (current.isGetter) return true;
-        final returnType = current.returnType?.toSource();
-        if (returnType == 'String') return true;
-
         AstNode? parentClass = current.parent;
         if (parentClass is! ClassDeclaration) {
           parentClass = parentClass?.parent;
@@ -541,20 +542,10 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
             return true;
           }
         }
-      }
-
-      if (current is FunctionDeclaration) {
-        if (current.isGetter) return true;
-        final returnType = current.returnType?.toSource();
-        if (returnType == 'String') return true;
+        return false;
       }
 
       if (current is VariableDeclaration) {
-        final parentList = current.parent;
-        if (parentList is VariableDeclarationList) {
-          final type = parentList.type?.toSource();
-          if (type == 'String') return true;
-        }
         AstNode? parentClass = current.parent?.parent?.parent;
         if (parentClass is! ClassDeclaration) {
           parentClass = parentClass?.parent;
@@ -563,10 +554,12 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
           final className = _getClassName(parentClass);
           if (className.contains('Strings') ||
               className.contains('Errors') ||
-              className.contains('Messages')) {
+              className.contains('Messages') ||
+              className.contains('Constants')) {
             return true;
           }
         }
+        return false;
       }
 
       if (current is ClassDeclaration ||
@@ -616,7 +609,13 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     _seenConstOffsets.add(keyword.offset);
 
     final start = keyword.offset;
-    final end = keyword.next?.offset ?? keyword.end;
+    var end = keyword.end;
+
+    if (keyword.next != null &&
+        keyword.next!.precedingComments == null &&
+        keyword.next!.offset == keyword.end + 1) {
+      end = keyword.end + 1;
+    }
 
     constRemovals.add(
       SourceEdit(

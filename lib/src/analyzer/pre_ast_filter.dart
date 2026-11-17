@@ -23,8 +23,15 @@ class PreAstFilter {
     'text:',
     'confirmText:',
     'cancelText:',
+    'buttonText:',
+    'action:',
+    'prompt:',
     'header:',
     'content:',
+    'showToast',
+    'showSnackBar',
+    'showDialog',
+    'showAlert',
   ];
 
   /// Returns `true` if [content] might contain localizable UI or core strings.

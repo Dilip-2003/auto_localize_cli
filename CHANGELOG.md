@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0
+
+### Production Hardening & Compiler Precision
+- **Flutter 3.27+ Compatibility & Deterministic Localization**:
+  - Configures `intl: any` in `pubspec.yaml` to prevent version solving conflicts with `flutter_localizations` on modern Flutter SDKs.
+  - Generates deterministic `output-dir: lib/l10n` and `synthetic-package: false` in `l10n.yaml`, ensuring seamless imports across all Flutter versions.
+  - Removed deprecated `package:flutter_gen` from initialization instructions.
+- **Idiomatic Reactive Runtime Locale Switching**:
+  - Removed unsafe recursive `markDirty` element tree traversal from `localization_helper.dart`, relying cleanly on `ValueListenableBuilder<Locale?>` and `WidgetsBinding.addPostFrameCallback`.
+- **PreAstFilter Token Synchronization**:
+  - Added missing whitelist tokens (`buttonText:`, `action:`, `prompt:`, `showToast`, `showSnackBar`, `showDialog`, `showAlert`) to `PreAstFilter`, eliminating silent false-rejects of UI helper files.
+- **Restricted Non-UI String Extraction**:
+  - Restricted getter and method extraction strictly to classes ending with `Strings`, `Errors`, `Messages`, or `Constants` (e.g. `AppStrings`), protecting data models, repositories, and services from unintended string extraction.
+  - Preserves inline comments (`/* comment */`) between `const` and widget constructors when stripping `const`.
+  - Added raw string interpolation guard (`r'...'`) to prevent raw strings with `$` from being parsed as interpolations.
+- **Safe Import Placement & ARB-Aware Incremental Cache**:
+  - Tracks `firstDeclarationOffset` to place helper imports below leading file-level comments (`// ignore_for_file:` or license headers).
+  - Enhanced `IncrementalCacheManager` with `arbSignature` to automatically re-scan Dart files if `app_en.arb` is externally modified or keys are deleted.
+- **Deduplicated CLI Architecture & Rich Practical Docs**:
+  - Refactored `bin/init.dart` and `bin/extract.dart` to forward directly to unified `bin/auto_localize_cli.dart`.
+  - Overhauled `README.md` with rich practical use cases for all CLI shorthands (`-f`, `-d`, `-g`, `-l`, `-w`) and declarative `GoRouter` setup.
+
 ## 1.0.7
 
 ### Architecture & Compiler Resilience

@@ -91,9 +91,15 @@ class ExtractRunner {
       packageName: packageName,
     );
 
+    final arbStat = arbFile.existsSync() ? arbFile.statSync() : null;
+    final arbSignature = arbStat != null
+        ? '${arbStat.modified.microsecondsSinceEpoch}:${arbStat.size}'
+        : 'missing';
+
     final cacheManager = IncrementalCacheManager(
       projectDir: projectDir,
       enabled: !noCache && !dryRun && targetFilePath == null,
+      arbSignature: arbSignature,
     );
 
     final libDir = Directory(p.join(projectDir.path, 'lib'));
@@ -262,6 +268,11 @@ class ExtractRunner {
       // Phase 1: Save ARB first!
       if (totalFilesModified > 0 || totalStringsExtracted > 0) {
         await arbManager.save();
+        final newArbStat = arbFile.existsSync() ? arbFile.statSync() : null;
+        final newArbSignature = newArbStat != null
+            ? '${newArbStat.modified.microsecondsSinceEpoch}:${newArbStat.size}'
+            : 'missing';
+        cacheManager.updateArbSignature(newArbSignature);
         stdout.writeln(
           '💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.',
         );
