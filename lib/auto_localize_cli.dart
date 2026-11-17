@@ -10,7 +10,9 @@
 ///
 /// ### 1. Initialization Command
 /// ```bash
-/// dart run auto_localize_cli:init
+/// dart run auto_localize_cli init
+/// # Or if globally activated:
+/// auto_localize_cli init
 /// ```
 /// **Logic & Execution:**
 /// - Injects `flutter_localizations` & `intl` into your `pubspec.yaml` with `generate: true`.
@@ -25,17 +27,23 @@
 /// ```dart
 /// import 'package:your_app/core/localization/localization_helper.dart';
 ///
-/// MaterialApp(
-///   navigatorKey: globalNavigatorKey, // <-- Enables context-less l10n everywhere!
-///   localizationsDelegates: AppLocalizations.localizationsDelegates,
-///   supportedLocales: AppLocalizations.supportedLocales,
-///   home: const HomeScreen(),
-/// )
+/// ValueListenableBuilder<Locale?>(
+///   valueListenable: localeNotifier,
+///   builder: (context, currentLocale, _) => MaterialApp(
+///     navigatorKey: globalNavigatorKey, // <-- Enables context-less l10n everywhere!
+///     locale: currentLocale,
+///     localizationsDelegates: AppLocalizations.localizationsDelegates,
+///     supportedLocales: AppLocalizations.supportedLocales,
+///     home: const HomeScreen(),
+///   ),
+/// );
 /// ```
 ///
 /// ### 3. Extraction Command
 /// ```bash
-/// dart run auto_localize_cli:extract
+/// dart run auto_localize_cli extract
+/// # Or if globally activated:
+/// auto_localize_cli extract
 /// ```
 /// **Logic & Execution:**
 /// - Uses Dart's `analyzer` AST visitor to scan all Dart files for hardcoded strings.

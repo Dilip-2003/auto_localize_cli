@@ -117,6 +117,39 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     'EventChannel',
     'ThemeData',
     'Duration',
+    'Exception',
+    'FormatException',
+    'StateError',
+    'ArgumentError',
+    'RangeError',
+    'UnsupportedError',
+    'UnimplementedError',
+    'AssertionError',
+    'TypeError',
+    'Color',
+    'Uri',
+    'DateTime',
+    'File',
+    'Directory',
+    'Platform',
+    'Process',
+    'HttpClient',
+    'Socket',
+    'HttpHeaders',
+    'ContentType',
+    'Uint8List',
+    'ByteData',
+    'TextStyle',
+    'BoxDecoration',
+    'EdgeInsets',
+    'BorderRadius',
+  };
+
+  static const Set<String> _uiHelperMethods = {
+    'showToast',
+    'showSnackBar',
+    'showDialog',
+    'showAlert',
   };
 
   static const Set<String> _uiNamedParams = {
@@ -434,7 +467,12 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
 
   /// Checks if node is used in a UI widget or string method/getter.
   bool _isExtractableContext(AstNode node) {
-    final parent = node.parent;
+    var parent = node.parent;
+
+    // Support ternary and binary operators in UI expressions
+    if (parent is ConditionalExpression || parent is BinaryExpression) {
+      parent = parent?.parent;
+    }
 
     // Case 1: Named argument with UI parameter name
     final paramLabel = _getNamedArgumentLabel(parent);
@@ -457,9 +495,9 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         final name = grandParent.methodName.name;
         final target = grandParent.target;
 
-        // PascalCase invocations (e.g. Text("..."), SelectableText("..."))
-        if (RegExp(r'^[A-Z]').hasMatch(name) &&
-            !_ignoredInvocations.contains(name)) {
+        // PascalCase invocations (e.g. Text("..."), SelectableText("...")) or common UI helpers
+        if ((RegExp(r'^[A-Z]').hasMatch(name) && !_ignoredInvocations.contains(name)) ||
+            _uiHelperMethods.contains(name)) {
           return true;
         }
 
@@ -554,6 +592,11 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
         if (keyword != null && keyword.lexeme == 'const') {
           _recordConstRemoval(keyword);
         }
+      } else if (current is VariableDeclarationList) {
+        final keyword = current.keyword;
+        if (keyword != null && keyword.lexeme == 'const') {
+          _recordConstReplacement(keyword, 'final ');
+        }
       }
       current = current.parent;
     }
@@ -561,6 +604,11 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
 
   /// Registers a `const` token for removal, ensuring each token is only removed once.
   void _recordConstRemoval(Token keyword) {
+    _recordConstReplacement(keyword, '');
+  }
+
+  /// Registers a `const` token for replacement with [replacement].
+  void _recordConstReplacement(Token keyword, String replacement) {
     if (_seenConstOffsets.contains(keyword.offset)) {
       return;
     }
@@ -573,7 +621,7 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
       SourceEdit(
         offset: start,
         length: end - start,
-        replacement: '',
+        replacement: replacement,
       ),
     );
   }

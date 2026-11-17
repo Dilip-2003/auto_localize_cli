@@ -235,8 +235,7 @@ class CodeRewriter {
       return content;
     }
 
-    final importStatement =
-        "import 'package:$packageName/core/localization/localization_helper.dart';";
+    final importStatement = _determineHelperImport(filePath);
 
     if (lastImportEnd != null) {
       final lineBreakIndex = content.indexOf('\n', lastImportEnd);
@@ -297,8 +296,7 @@ class CodeRewriter {
       path: parentPath,
       throwIfDiagnostics: false,
     );
-    final importStatement =
-        "import 'package:$packageName/core/localization/localization_helper.dart';";
+    final importStatement = _determineHelperImport(parentPath);
 
     final lastImport = parentParsed.unit.directives
         .whereType<ImportDirective>()
@@ -330,5 +328,63 @@ class CodeRewriter {
     }
 
     parentFile.writeAsStringSync(newParentContent);
+  }
+
+  /// Determines the correct import statement for localization_helper.dart
+  /// by inspecting actual directory structure under lib/.
+  String _determineHelperImport(String filePath) {
+    final libDir = _findLibDirectory(filePath);
+    if (libDir != null) {
+      final relativePath = _findHelperPath(libDir);
+      if (relativePath != null) {
+        return "import 'package:$packageName/$relativePath';";
+      }
+    }
+    return "import 'package:$packageName/core/localization/localization_helper.dart';";
+  }
+
+  Directory? _findLibDirectory(String filePath) {
+    Directory? current = File(filePath).parent;
+    while (current != null) {
+      if (p.basename(current.path) == 'lib') {
+        return current;
+      }
+      final pubspec = File(p.join(current.path, 'pubspec.yaml'));
+      if (pubspec.existsSync()) {
+        final lib = Directory(p.join(current.path, 'lib'));
+        if (lib.existsSync()) return lib;
+      }
+      final parent = current.parent;
+      if (parent.path == current.path) break;
+      current = parent;
+    }
+    return null;
+  }
+
+  String? _findHelperPath(Directory libDir) {
+    const commonRelativePaths = [
+      'core/localization/localization_helper.dart',
+      'localization/localization_helper.dart',
+      'core/localization_helper.dart',
+      'utils/localization_helper.dart',
+      'localization_helper.dart',
+    ];
+
+    for (final rel in commonRelativePaths) {
+      final file = File(p.join(libDir.path, rel));
+      if (file.existsSync()) {
+        return rel.replaceAll(r'\', '/');
+      }
+    }
+
+    try {
+      for (final entity in libDir.listSync(recursive: true, followLinks: false)) {
+        if (entity is File && p.basename(entity.path) == 'localization_helper.dart') {
+          return p.relative(entity.path, from: libDir.path).replaceAll(r'\', '/');
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 }

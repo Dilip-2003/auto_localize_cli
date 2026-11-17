@@ -16,6 +16,17 @@ Future<void> main(List<String> arguments) async {
       help:
           'Target locale template ARB file to extract into (e.g. en, ru, es, bn). If omitted, automatically detected from l10n.yaml.',
     )
+    ..addOption(
+      'file',
+      abbr: 'f',
+      help: 'Target a single Dart file to extract (bypasses full directory crawl).',
+    )
+    ..addFlag(
+      'dry-run',
+      abbr: 'd',
+      negatable: false,
+      help: 'Preview strings to extract and files to modify without writing changes to disk.',
+    )
     ..addFlag(
       'git-diff',
       abbr: 'g',
@@ -47,6 +58,8 @@ Future<void> main(List<String> arguments) async {
   }
 
   final locale = argResults['locale'] as String?;
+  final file = argResults['file'] as String?;
+  final dryRun = argResults['dry-run'] as bool;
   final gitDiff = argResults['git-diff'] as bool;
   final noCache = !(argResults['cache'] as bool);
   final workersStr = argResults['workers'] as String?;
@@ -54,6 +67,8 @@ Future<void> main(List<String> arguments) async {
 
   final runner = ExtractRunner(
     locale: locale,
+    targetFilePath: file,
+    dryRun: dryRun,
     gitDiff: gitDiff,
     noCache: noCache,
     workers: workers,

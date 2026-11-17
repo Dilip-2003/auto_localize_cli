@@ -8,6 +8,22 @@ import 'code_rewriter.dart';
 import 'directory_crawler.dart';
 import 'pre_ast_filter.dart';
 
+class _PendingFileWrite {
+  final File file;
+  final String relativePath;
+  final String newContent;
+  final int stringsExtracted;
+  final int constsRemoved;
+
+  _PendingFileWrite({
+    required this.file,
+    required this.relativePath,
+    required this.newContent,
+    required this.stringsExtracted,
+    required this.constsRemoved,
+  });
+}
+
 /// Coordinates the hyper-scale Phase 2 extraction pipeline across small apps
 /// and massive enterprise monorepos (up to 50M+ files).
 class ExtractRunner {
@@ -23,6 +39,12 @@ class ExtractRunner {
   /// Whether to bypass incremental cache and force a full re-scan.
   final bool noCache;
 
+  /// Specific target file to extract from (safety valve for isolated testing).
+  final String? targetFilePath;
+
+  /// Whether to run in Dry-Run mode (previews changes without writing to disk).
+  final bool dryRun;
+
   /// Number of parallel worker isolates for AST parsing.
   final int workers;
 
@@ -32,6 +54,8 @@ class ExtractRunner {
     this.locale,
     this.gitDiff = false,
     this.noCache = false,
+    this.targetFilePath,
+    this.dryRun = false,
     int? workers,
   })  : projectDir = projectDir ?? Directory.current,
         workers = workers ?? Platform.numberOfProcessors.clamp(1, 8);
@@ -53,33 +77,41 @@ class ExtractRunner {
 
     final arbFile = await _resolveArbFile();
     final arbManager = ArbManager(arbFile: arbFile);
-    await arbManager.load();
+
+    try {
+      await arbManager.load();
+    } catch (_) {
+      // Errors are already logged to stderr by arbManager.load()
+      exitCode = 1;
+      return;
+    }
 
     final rewriter = CodeRewriter(
       arbManager: arbManager,
       packageName: packageName,
     );
 
-    final libDir = Directory(p.join(projectDir.path, 'lib'));
-    if (!await libDir.exists()) {
-      stderr.writeln('Error: lib/ directory not found in ${projectDir.path}.');
-      exitCode = 1;
-      return;
-    }
-
     final cacheManager = IncrementalCacheManager(
       projectDir: projectDir,
-      enabled: !noCache,
+      enabled: !noCache && !dryRun && targetFilePath == null,
     );
 
+    final libDir = Directory(p.join(projectDir.path, 'lib'));
     final relativeArbDir =
         p.relative(arbFile.parent.path, from: projectDir.path);
 
-    stdout.writeln(
-      gitDiff
-          ? '🔍 Running in Git-Diff mode (extracting from changed/untracked files)...'
-          : '🔍 Streaming Dart source files in lib/ for hardcoded strings...',
-    );
+    if (dryRun) {
+      stdout.writeln(
+          '🔍 Running in Dry-Run mode (no files will be written to disk)...');
+    } else if (targetFilePath != null) {
+      stdout.writeln('🔍 Extracting specifically from $targetFilePath...');
+    } else if (gitDiff) {
+      stdout.writeln(
+          '🔍 Running in Git-Diff mode (extracting from changed/untracked files)...');
+    } else {
+      stdout.writeln(
+          '🔍 Streaming Dart source files in lib/ for hardcoded strings...');
+    }
 
     var totalFilesScanned = 0;
     var totalCacheHits = 0;
@@ -89,9 +121,20 @@ class ExtractRunner {
     var totalStringsExtracted = 0;
     var totalConstsRemoved = 0;
 
-    // Stream files either via git diff or streaming directory walker
+    // Stream files either via single-file, git diff, or streaming directory walker
     Stream<File> fileStream;
-    if (gitDiff) {
+    if (targetFilePath != null) {
+      final absoluteTarget = p.isAbsolute(targetFilePath!)
+          ? targetFilePath!
+          : p.join(projectDir.path, targetFilePath!);
+      final targetFile = File(absoluteTarget);
+      if (!await targetFile.exists()) {
+        stderr.writeln('Error: Target file not found: $targetFilePath');
+        exitCode = 1;
+        return;
+      }
+      fileStream = Stream.value(targetFile);
+    } else if (gitDiff) {
       final diffFiles = await DirectoryCrawler.getGitDiffFiles(projectDir);
       if (diffFiles.isEmpty) {
         stdout.writeln('No modified or untracked Dart files found via Git.');
@@ -104,9 +147,10 @@ class ExtractRunner {
       );
     }
 
-    // Bounded backpressure chunking (max 64 open files per batch)
     const batchSize = 64;
     final candidateBatch = <FileToParse>[];
+    final pendingFileWrites = <_PendingFileWrite>[];
+    final cleanFiles = <String>[];
 
     Future<void> processCurrentBatch() async {
       if (candidateBatch.isEmpty) return;
@@ -117,30 +161,27 @@ class ExtractRunner {
         workers: workers,
       );
 
-      // Deterministic main-thread resolution: sort by filePath
       parsedList.sort((a, b) => a.filePath.compareTo(b.filePath));
 
       for (final parsed in parsedList) {
         final result = rewriter.applyParsedPayload(parsed);
 
         if (result.modified) {
-          final targetFile = File(parsed.filePath);
-          await targetFile.writeAsString(result.newContent);
-          final newStat = await targetFile.stat();
-          cacheManager.recordFileClean(parsed.relativePath, newStat);
+          pendingFileWrites.add(
+            _PendingFileWrite(
+              file: File(parsed.filePath),
+              relativePath: parsed.relativePath,
+              newContent: result.newContent,
+              stringsExtracted: result.stringsExtracted,
+              constsRemoved: result.constsRemoved,
+            ),
+          );
 
           totalFilesModified++;
           totalStringsExtracted += result.stringsExtracted;
           totalConstsRemoved += result.constsRemoved;
-
-          stdout.writeln(
-            '  ✏️  Updated ${parsed.relativePath} '
-            '(${result.stringsExtracted} strings localized, ${result.constsRemoved} consts removed)',
-          );
         } else {
-          // File was parsed, has 0 extractable strings or was already localized
-          final fileStat = File(parsed.filePath).statSync();
-          cacheManager.recordFileClean(parsed.relativePath, fileStat);
+          cleanFiles.add(parsed.relativePath);
         }
       }
 
@@ -159,7 +200,10 @@ class ExtractRunner {
       }
 
       // Check incremental cache hit
-      if (cacheManager.isFileClean(relativePath, stat)) {
+      if (targetFilePath == null &&
+          !noCache &&
+          !dryRun &&
+          cacheManager.isFileClean(relativePath, stat)) {
         totalCacheHits++;
         continue;
       }
@@ -172,12 +216,15 @@ class ExtractRunner {
       }
 
       // Pre-AST Lexical Fast-Reject Filter (<0.01ms check)
-      if (!PreAstFilter.canContainLocalizableStrings(
-        source,
-        filePath: file.path,
-      )) {
+      if (targetFilePath == null &&
+          !PreAstFilter.canContainLocalizableStrings(
+            source,
+            filePath: file.path,
+          )) {
         totalFastRejected++;
-        cacheManager.recordFileClean(relativePath, stat);
+        if (!dryRun) {
+          cacheManager.recordFileClean(relativePath, stat);
+        }
         continue;
       }
 
@@ -199,14 +246,49 @@ class ExtractRunner {
     // Process any trailing candidates
     await processCurrentBatch();
 
-    // Save updated ARB file
-    await arbManager.save();
-    stdout.writeln(
-      '💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.',
-    );
+    // Two-Phase Atomic Commit:
+    if (dryRun) {
+      stdout.writeln(
+          '\n[DRY RUN] Preview of changes (0 files modified on disk):');
+      for (final item in pendingFileWrites) {
+        stdout.writeln(
+          '  📝 Would update ${item.relativePath} '
+          '(${item.stringsExtracted} strings, ${item.constsRemoved} consts)',
+        );
+      }
+      stdout.writeln(
+          '[DRY RUN] Would update ARB: ${p.relative(arbFile.path, from: projectDir.path)}');
+    } else {
+      // Phase 1: Save ARB first!
+      if (totalFilesModified > 0 || totalStringsExtracted > 0) {
+        await arbManager.save();
+        stdout.writeln(
+          '💾 Saved updated strings to ${p.relative(arbFile.path, from: projectDir.path)}.',
+        );
+      }
 
-    // Persist cache shards
-    await cacheManager.flush();
+      // Phase 2: Write all modified source files to disk!
+      for (final item in pendingFileWrites) {
+        await item.file.writeAsString(item.newContent);
+        final newStat = await item.file.stat();
+        cacheManager.recordFileClean(item.relativePath, newStat);
+
+        stdout.writeln(
+          '  ✏️  Updated ${item.relativePath} '
+          '(${item.stringsExtracted} strings localized, ${item.constsRemoved} consts removed)',
+        );
+      }
+
+      for (final relPath in cleanFiles) {
+        final f = File(p.join(projectDir.path, relPath));
+        if (f.existsSync()) {
+          cacheManager.recordFileClean(relPath, f.statSync());
+        }
+      }
+
+      // Persist cache shards
+      await cacheManager.flush();
+    }
 
     stdout.writeln('''
 ----------------------------------------------------------------------
@@ -221,7 +303,7 @@ Extraction Summary:
 ----------------------------------------------------------------------''');
 
     // Trigger flutter gen-l10n if strings were modified or added
-    if (totalFilesModified > 0 || totalStringsExtracted > 0) {
+    if (!dryRun && (totalFilesModified > 0 || totalStringsExtracted > 0)) {
       await _generateLocalizations();
     }
   }

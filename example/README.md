@@ -13,12 +13,12 @@ Welcome to the **`auto_localize_cli`** example showcase! This guide demonstrates
                 │
                 ▼
 ┌─────────────────────────────────┐
-│ 2. dart run auto_localize_cli:init  ➔ Scaffolds l10n.yaml, template ARB, and
+│ 2. dart run auto_localize_cli init  ➔ Scaffolds l10n.yaml, template ARB, and
 └─────────────────────────────────┘    lib/core/localization/localization_helper.dart
                 │
                 ▼
 ┌─────────────────────────────────┐
-│ 3. dart run auto_localize_cli:extract ➔ Parses Dart AST, extracts strings to ARB,
+│ 3. dart run auto_localize_cli extract ➔ Parses Dart AST, extracts strings to ARB,
 └─────────────────────────────────┘    removes consts, and rewrites to l10n.key!
 ```
 
@@ -44,7 +44,7 @@ class ProfileHeader extends StatelessWidget {
 }
 ```
 
-### 2. After Running `dart run auto_localize_cli:extract`
+### 2. After Running `dart run auto_localize_cli extract`
 ```dart
 // Generated and updated automatically by auto_localize_cli
 import 'package:my_app/core/localization/localization_helper.dart';
@@ -278,7 +278,7 @@ void main() {
 
 ### Recipe 5: Adding More Languages in 2 Minutes (AI Translation Workflow)
 
-Once `auto_localize_cli:extract` compiles all hardcoded strings into `lib/l10n/app_en.arb`, adding any new language is as simple as:
+Once `auto_localize_cli extract` compiles all hardcoded strings into `lib/l10n/app_en.arb`, adding any new language is as simple as:
 
 1. **Copy `app_en.arb`** and paste it into ChatGPT, Claude, or Gemini:
    > *"Translate this Flutter ARB file into Spanish (`es`). Keep all JSON keys and `{placeholder}` tokens unchanged."*
@@ -301,10 +301,12 @@ No widget rewrites, no manual `.tr` extensions, and zero `BuildContext` boilerpl
 | Task | Terminal Command |
 |---|---|
 | **Add CLI Dependency** | `flutter pub add dev:auto_localize_cli` |
-| **Initialize Scaffolding (English)** | `dart run auto_localize_cli:init` |
-| **Initialize Custom Base Language** | `dart run auto_localize_cli:init -l es` *(or `-l ru`, `-l bn`)* |
-| **Extract All Hardcoded Strings** | `dart run auto_localize_cli:extract` |
-| **Sub-Second Git-Diff Mode** | `dart run auto_localize_cli:extract --git-diff` *(or `-g`)* |
-| **Bypass Incremental Cache** | `dart run auto_localize_cli:extract --no-cache` |
-| **Configure Worker Threads** | `dart run auto_localize_cli:extract -w 4` |
+| **Initialize Scaffolding (English)** | `dart run auto_localize_cli init` |
+| **Initialize Custom Base Language** | `dart run auto_localize_cli init -l es` *(or `-l ru`, `-l bn`)* |
+| **Extract All Hardcoded Strings** | `dart run auto_localize_cli extract` |
+| **Sub-Second Git-Diff Mode** | `dart run auto_localize_cli extract --git-diff` *(or `-g`)* |
+| **Single-File Targeted Extraction** | `dart run auto_localize_cli extract --file <path>` *(or `-f`)* |
+| **Dry-Run Preview Mode** | `dart run auto_localize_cli extract --dry-run` *(or `-d`)* |
+| **Bypass Incremental Cache** | `dart run auto_localize_cli extract --no-cache` |
+| **Configure Worker Threads** | `dart run auto_localize_cli extract -w 4` |
 | **Manual Recompilation** | `flutter gen-l10n` |

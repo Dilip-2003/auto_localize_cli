@@ -74,6 +74,12 @@ class KeyGenerator {
     'yield',
   };
 
+  static const Set<String> _flutterReservedKeywords = {
+    'supportedlocales',
+    'localizationsdelegates',
+    'delegate',
+  };
+
   static const Set<String> _prunedWords = {
     'been',
     'is',
@@ -86,10 +92,6 @@ class KeyGenerator {
     'the',
     'a',
     'an',
-    'temporarily',
-    'permanently',
-    'currently',
-    'immediately',
   };
 
   /// Generates a valid ARB key from raw source string [rawText].
@@ -287,8 +289,8 @@ class KeyGenerator {
     // Replace non-alphanumeric characters with spaces
     final cleaned = splitCamel.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), ' ').trim();
     if (cleaned.isEmpty) {
-      // Deterministic fallback for non-Latin scripts (e.g. Chinese, Bengali, Hindi, Arabic)
-      final hash = text.hashCode.abs() % 100000;
+      // Deterministic 32-bit FNV-1a fallback for non-Latin scripts (e.g. Chinese, Bengali, Hindi, Arabic)
+      final hash = _fnv1a(text) % 100000;
       return ['msg$hash'];
     }
 
@@ -387,9 +389,20 @@ class KeyGenerator {
     return buffer.toString();
   }
 
-  /// Step 6: Suffix with 'Text' if the key matches a Dart reserved keyword or starts with digit.
+  /// 32-bit FNV-1a deterministic hash (stable across Dart VM, Web, and all platforms).
+  static int _fnv1a(String str) {
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) {
+      hash ^= str.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash.abs();
+  }
+
+  /// Step 6: Suffix with 'Text' if the key matches a Dart or Flutter reserved keyword or starts with digit.
   String _resolveReservedKeywords(String key) {
-    if (_dartKeywords.contains(key.toLowerCase())) {
+    final lower = key.toLowerCase();
+    if (_dartKeywords.contains(lower) || _flutterReservedKeywords.contains(lower)) {
       return '${key}Text';
     }
     if (RegExp(r'^\d').hasMatch(key)) {

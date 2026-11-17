@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.7
+
+### Architecture & Compiler Resilience
+- **Unified CLI Entry Point (`auto_localize_cli`)**:
+  - Added `bin/auto_localize_cli.dart` supporting subcommands: `auto_localize_cli init`, `auto_localize_cli extract`, `--version`, and `--help`.
+  - Added global binary mappings in `pubspec.yaml` executables for direct PATH execution.
+- **Targeted Single-File Extraction (`--file` / `-f`)**:
+  - Added `--file <path>` option to extract strings from an individual Dart file without running a full directory crawl.
+- **Dry-Run Preview Mode (`--dry-run` / `-d`)**:
+  - Added `--dry-run` flag to preview extracted strings and files to be rewritten without modifying files on disk or ARB catalogs.
+- **Atomic Two-Phase Commit**:
+  - Implemented in-memory file modification buffering (`_PendingFileWrite`). ARB catalogs are committed first; Dart source files are rewritten only after ARB persistence succeeds, preventing partial extraction desynchronization.
+- **Resilient ARB Error Handling**:
+  - `ArbManager.load()` now rethrows `FormatException` and logs detailed syntax errors on malformed/merge-conflicted ARB files rather than silently erasing existing translations.
+- **Unparameterized ICU Brace Escaping**:
+  - Automatically escapes literal `{` and `}` in plain text strings as `'{'` and `'}'` in ARB catalogs to prevent ICU parameter mismatch in `flutter gen-l10n`.
+- **Deterministic 32-bit FNV-1a Hashing**:
+  - Implemented cross-platform deterministic FNV-1a hash generator for non-Latin script fallback keys (Bengali, Hindi, Arabic, Chinese).
+- **Reserved Keyword Collision Protection**:
+  - Disambiguates Flutter `AppLocalizations` static members (`supportedLocales`, `localizationsDelegates`, `delegate`, `default`, `class`) with a `Text` suffix to prevent compiler conflicts.
+- **Contrasting Adverbs Preservation**:
+  - Retains distinguishing adverbs (`temporarily`, `permanently`, `currently`, `immediately`) in semantic key generation.
+- **Top-Level and Static `const` Variable Conversion**:
+  - AST visitor automatically detects top-level and static `const` variables containing extracted UI widgets and rewrites `const` to `final`.
+- **Non-UI Class Filtering**:
+  - Strict AST ignore filter for non-UI classes (`Exception`, `FormatException`, `StateError`, `ArgumentError`, `Color`, `Uri`, `DateTime`, `File`, `Directory`, `Platform`, `Process`, `HttpClient`, `Logger`, and `print`).
+- **Reactive Build-Phase Protection**:
+  - `changeAppLocale` now safely schedules UI rebuilds via `WidgetsBinding.addPostFrameCallback` when invoked during widget build phases.
+- **Multi-Stage Script Subtag Fallback**:
+  - Pre-mount `l10n` fallback now evaluates exact script codes and country codes (e.g. `zh_Hant` vs `zh_Hans`).
+- **Test Isolation Helper**:
+  - Scaffolds `@visibleForTesting void resetLocalizationHelperForTesting()` for clean test teardowns.
+- **Multi-OS GitHub Actions CI**:
+  - Added `.github/workflows/ci.yml` matrix testing across Linux, Windows, and macOS on stable and beta Dart SDK channels.
+
 ## 1.0.6
 
 ### Architecture & Scaffolding Isolation
@@ -13,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures clean separation and zero directory pollution for enterprise apps with existing `lib/core/` architectures (e.g. `core/network/`, `core/constants/`, `core/theme/`).
   - Updated AST code rewriter, directory crawler, and test suites to automatically inject and respect `lib/core/localization/localization_helper.dart`.
 - **Comprehensive `init` & `extract` Engine Logic Documentation**:
-  - Added detailed under-the-hood engine breakdowns for both `dart run auto_localize_cli:init` and `dart run auto_localize_cli:extract` directly into the Quick Start and Installation guides in `README.md` and `lib/auto_localize_cli.dart`.
+  - Added detailed under-the-hood engine breakdowns for both `dart run auto_localize_cli init` and `dart run auto_localize_cli extract` directly into the Quick Start and Installation guides in `README.md` and `lib/auto_localize_cli.dart`.
   - Documented AST parsing stages, dual-mode whitelisting, ancestor `const` stripping, and 0 KB release bundle footprint.
 - **Example App Updates**:
   - Updated `example/` structure and imports to `lib/core/localization/`.
@@ -64,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 1.0.0
 
 ### Added
-- **Phase 1 Scaffolding (`auto_localize_cli:init`)**:
+- **Phase 1 Scaffolding (`auto_localize_cli init`)**:
   - Automatically configures `flutter_localizations` and `intl` in `pubspec.yaml` with `generate: true`.
   - Creates `l10n.yaml` with standard Flutter localization configuration.
   - Generates template ARB catalog (`lib/l10n/app_en.arb` or custom base locale via `--locale` / `-l`).
@@ -80,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Multi-Core Isolate Worker Pool**: Parallelizes AST parsing across CPU cores (`--workers`) with deterministic sequential main-thread ARB key resolution.
   - **$O(k)$ Git-Diff Mode (`--git-diff` / `-g`)**: Extracts only from uncommitted and untracked Git files, achieving sub-second extraction in multi-million-file repositories.
 
-- **Phase 2 Extraction (`auto_localize_cli:extract`)**:
+- **Phase 2 Extraction (`auto_localize_cli extract`)**:
   - Compiler-grade AST parsing using `package:analyzer`.
   - Automatically locates hardcoded UI strings in widgets (`Text`, `SelectableText`, `Tooltip`, `InputDecoration`, `Semantics`, etc.) and core string classes.
   - Automatically walks up the AST hierarchy to remove ancestor `const` keywords on widgets and literal lists/maps, preventing compile-time errors.

@@ -38,10 +38,15 @@ class ArbManager {
           final decoded = json.decode(content);
           if (decoded is Map<String, dynamic>) {
             _data.addAll(decoded);
+          } else {
+            throw const FormatException('ARB file content must be a JSON object.');
           }
         } catch (e) {
           stderr.writeln(
-              'Warning: Failed to parse ARB JSON at ${arbFile.path}: $e');
+              'Error: Failed to parse ARB JSON at ${arbFile.path}: $e');
+          stderr.writeln(
+              'Extraction aborted to prevent permanent data loss. Please fix JSON syntax errors.');
+          rethrow;
         }
       }
     }
@@ -80,7 +85,13 @@ class ArbManager {
       return null;
     }
 
-    _data[key] = stringValue;
+    // Escape literal unparameterized braces in ARB string to avoid ICU syntax errors in gen-l10n
+    var storedValue = stringValue;
+    if (placeholders.isEmpty && storedValue.contains('{')) {
+      storedValue = storedValue.replaceAll('{', "'{'").replaceAll('}', "'}'");
+    }
+
+    _data[key] = storedValue;
     _reverseMap[stringValue] = key;
 
     if (placeholders.isNotEmpty) {

@@ -67,7 +67,7 @@ Next Steps:
    )
 
 3. Add hardcoded UI strings or core errors, then run:
-   dart run auto_localize_cli:extract
+   dart run auto_localize_cli extract
 ======================================================================
 ''');
   }
@@ -88,7 +88,7 @@ Next Steps:
       ], {
         'flutter': {'sdk': 'flutter'},
         'flutter_localizations': {'sdk': 'flutter'},
-        'intl': 'any',
+        'intl': '^0.19.0',
       });
     } else {
       if (!dependencies.containsKey('flutter_localizations')) {
@@ -96,7 +96,7 @@ Next Steps:
             ['dependencies', 'flutter_localizations'], {'sdk': 'flutter'});
       }
       if (!dependencies.containsKey('intl')) {
-        editor.update(['dependencies', 'intl'], 'any');
+        editor.update(['dependencies', 'intl'], '^0.19.0');
       }
     }
 
@@ -164,25 +164,45 @@ void setGlobalNavigatorKey(GlobalKey<NavigatorState> key) => _customNavigatorKey
 /// Live locale notifier for dynamic runtime locale switching without restart
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier<Locale?>(null);
 
-/// Changes the active application locale at runtime and notifies listeners.
-void changeAppLocale(Locale? locale) {
-  localeNotifier.value = locale;
-  _overrideLocale = locale;
+Locale? _overrideLocale;
 
-  void markDirty(Element el) {
-    el.markNeedsBuild();
-    el.visitChildren(markDirty);
+/// Changes the active application locale at runtime and notifies listeners.
+/// Safely schedules rebuild if called during widget build phase.
+void changeAppLocale(Locale? locale) {
+  void apply() {
+    localeNotifier.value = locale;
+    _overrideLocale = locale;
+
+    void markDirty(Element el) {
+      el.markNeedsBuild();
+      el.visitChildren(markDirty);
+    }
+
+    final ctx = (_customNavigatorKey?.currentContext ??
+        globalNavigatorKey.currentContext) as Element?;
+    if (ctx != null) {
+      markDirty(ctx);
+    }
   }
 
-  final ctx = (_customNavigatorKey?.currentContext ??
-      globalNavigatorKey.currentContext) as Element?;
-  if (ctx != null) {
-    markDirty(ctx);
+  final binding = WidgetsBinding.instance;
+  if (binding.buildOwner?.debugBuilding ?? false) {
+    binding.addPostFrameCallback((_) => apply());
+  } else {
+    apply();
   }
 }
 
-Locale? _overrideLocale;
 void setAutoLocalizeLocale(Locale? locale) => changeAppLocale(locale);
+
+/// Resets the global localization helper state.
+/// Useful in test teardown blocks to guarantee complete test isolation.
+@visibleForTesting
+void resetLocalizationHelperForTesting() {
+  localeNotifier.value = null;
+  _overrideLocale = null;
+  _customNavigatorKey = null;
+}
 
 /// Context-less global getter for localized application strings.
 AppLocalizations get l10n {
@@ -197,11 +217,33 @@ AppLocalizations get l10n {
 
   // Safe fallback before NavigatorState is mounted (e.g., inside MaterialApp.title)
   final targetLocale = _overrideLocale ?? localeNotifier.value ?? ui.PlatformDispatcher.instance.locale;
+
+  // 1. Exact match (languageCode + scriptCode + countryCode)
+  for (final supported in AppLocalizations.supportedLocales) {
+    if (supported.languageCode == targetLocale.languageCode &&
+        supported.scriptCode == targetLocale.scriptCode &&
+        supported.countryCode == targetLocale.countryCode) {
+      return lookupAppLocalizations(supported);
+    }
+  }
+
+  // 2. Language and script match
+  if (targetLocale.scriptCode != null) {
+    for (final supported in AppLocalizations.supportedLocales) {
+      if (supported.languageCode == targetLocale.languageCode &&
+          supported.scriptCode == targetLocale.scriptCode) {
+        return lookupAppLocalizations(supported);
+      }
+    }
+  }
+
+  // 3. Language only fallback
   for (final supported in AppLocalizations.supportedLocales) {
     if (supported.languageCode == targetLocale.languageCode) {
       return lookupAppLocalizations(supported);
     }
   }
+
   return lookupAppLocalizations(AppLocalizations.supportedLocales.first);
 }
 ''';
@@ -218,9 +260,7 @@ AppLocalizations get l10n {
     final appStringsFile =
         File(p.join(localizationDir.path, 'app_strings.dart'));
     if (!await appStringsFile.exists()) {
-      const content = '''import 'localization_helper.dart';
-
-/// Central class for application strings and messages.
+      const content = '''/// Central class for application strings and messages.
 class AppStrings {
   AppStrings._();
 }
