@@ -38,7 +38,7 @@ dependencies:
     sdk: flutter
 ''');
 
-      final runner = InitRunner(projectDir: tempDir);
+      final runner = InitRunner(projectDir: tempDir, autoRunFlutter: false);
       await runner.run();
 
       // 1. Verify pubspec.yaml contains 'intl: any'
@@ -51,7 +51,6 @@ dependencies:
       expect(await l10nYamlFile.exists(), isTrue);
       final l10nContent = await l10nYamlFile.readAsString();
       expect(l10nContent, contains('output-dir: lib/l10n'));
-      expect(l10nContent, contains('synthetic-package: false'));
 
       // 3. Verify localization_helper.dart does NOT contain unsafe markDirty
       final helperFile = File(
@@ -251,6 +250,76 @@ class SimpleScreen {
       );
 
       expect(nextCache.isFileClean('lib/test_file.dart', testStat), isFalse);
+    });
+
+    test(
+        'Edge-Cases Guard: Enum constants, switch cases, equality comparisons, and map keys are never extracted',
+        () async {
+      const source = '''
+import 'package:flutter/material.dart';
+
+enum Trigger {
+  power(
+    title: 'Hold Power button',
+    subtitle: 'Replaces Google Assistant',
+  );
+  final String title;
+  final String subtitle;
+  const Trigger({required this.title, required this.subtitle});
+}
+
+void testContext(dynamic json, String status) {
+  // Switch case
+  switch (status) {
+    case 'pending':
+      print('Status is pending');
+      break;
+  }
+
+  // Equality comparison
+  if (status == 'active') {
+    // UI widget inside branch SHOULD be extracted
+    showDialog(title: 'Welcome Active User');
+  }
+
+  // Map index lookup and map key
+  final x = json['title'];
+  final config = {'label': 'Non-UI Config'};
+}
+''';
+
+      final arbFile = File(p.join(tempDir.path, 'app_en.arb'));
+      arbFile.writeAsStringSync('{"@@locale": "en"}');
+      final arbManager = ArbManager(arbFile: arbFile);
+      await arbManager.load();
+
+      final rewriter = CodeRewriter(
+        arbManager: arbManager,
+        packageName: 'test_app',
+      );
+
+      final result = rewriter.rewrite(source, filePath: 'lib/edge_cases.dart');
+      expect(result.modified, isTrue);
+
+      // 1. Enum constant strings MUST be untouched
+      expect(result.newContent, contains("title: 'Hold Power button'"));
+      expect(
+          result.newContent, contains("subtitle: 'Replaces Google Assistant'"));
+      expect(result.newContent, isNot(contains('l10n.holdPowerButton')));
+
+      // 2. Switch case MUST be untouched
+      expect(result.newContent, contains("case 'pending':"));
+
+      // 3. Comparison MUST be untouched
+      expect(result.newContent, contains("status == 'active'"));
+
+      // 4. Map index lookup and key MUST be untouched
+      expect(result.newContent, contains("json['title']"));
+      expect(result.newContent, contains("'label': 'Non-UI Config'"));
+
+      // 5. Genuine UI string inside showDialog MUST be extracted
+      expect(result.newContent,
+          contains('showDialog(title: l10n.welcomeActiveUser)'));
     });
   });
 }

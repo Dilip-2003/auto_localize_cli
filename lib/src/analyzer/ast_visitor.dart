@@ -435,20 +435,50 @@ class LocalizationAstVisitor extends RecursiveAstVisitor<void> {
     return result;
   }
 
-  /// Checks if node is in an ignored context (directives, annotations, assert, constructor default params, etc.).
+  /// Checks if node is in an ignored context (directives, annotations, assert, constructor default params, enum constants, switch cases, comparisons, etc.).
   bool _isIgnoredContext(AstNode node) {
+    // 1. Non-removable const contexts (enums, annotations, default params, assert, constructor initializers)
+    if (node.thisOrAncestorOfType<EnumConstantDeclaration>() != null ||
+        node.thisOrAncestorOfType<Annotation>() != null ||
+        node.thisOrAncestorOfType<FormalParameter>() != null ||
+        node.thisOrAncestorOfType<ConstructorInitializer>() != null ||
+        node.thisOrAncestorOfType<AssertStatement>() != null ||
+        node.thisOrAncestorOfType<AssertInitializer>() != null ||
+        node.thisOrAncestorOfType<UriBasedDirective>() != null ||
+        node.thisOrAncestorOfType<Configuration>() != null) {
+      return true;
+    }
+
+    // 2. Pattern matching and switch cases
+    if (node.thisOrAncestorOfType<SwitchCase>() != null ||
+        node.thisOrAncestorOfType<SwitchPatternCase>() != null ||
+        node.thisOrAncestorOfType<CaseClause>() != null ||
+        node.thisOrAncestorOfType<ConstantPattern>() != null) {
+      return true;
+    }
+
+    // 3. Map index expressions (json['key']) and map literal keys
+    if (node.thisOrAncestorOfType<IndexExpression>() != null) {
+      return true;
+    }
+    final mapEntry = node.thisOrAncestorOfType<MapLiteralEntry>();
+    if (mapEntry != null && mapEntry.key == node) {
+      return true;
+    }
+
+    // 4. Comparison and relational expressions (e.g. status == 'admin') and ignored invocations
     AstNode? current = node.parent;
     while (current != null) {
-      final currentTypeStr = current.runtimeType.toString();
-      if (current is UriBasedDirective ||
-          current is Annotation ||
-          current is AssertStatement ||
-          current is AssertInitializer ||
-          current is FormalParameter ||
-          currentTypeStr.contains('FormalParameter') ||
-          current is ConstructorInitializer ||
-          current is Configuration) {
-        return true;
+      if (current is BinaryExpression) {
+        final op = current.operator.lexeme;
+        if (op == '==' ||
+            op == '!=' ||
+            op == '<' ||
+            op == '>' ||
+            op == '<=' ||
+            op == '>=') {
+          return true;
+        }
       }
 
       if (current is MethodInvocation) {

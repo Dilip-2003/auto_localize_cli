@@ -317,7 +317,11 @@ dependencies:
     sdk: flutter
 ''');
 
-      final initRunner = InitRunner(projectDir: customDir, defaultLocale: 'ru');
+      final initRunner = InitRunner(
+        projectDir: customDir,
+        defaultLocale: 'ru',
+        autoRunFlutter: false,
+      );
       await initRunner.run();
 
       final l10nYaml = File('${customDir.path}/l10n.yaml');

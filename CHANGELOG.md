@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.1
+
+### DX Automation & AppStrings Documentation
+- **Automated Initialization Workflow**:
+  - `auto_localize_cli init` now automatically executes `flutter pub get` and `flutter gen-l10n` during onboarding, instantly generating `lib/l10n/app_localizations.dart` and eliminating initial `uri_does_not_exist` IDE errors.
+  - Streamlined post-init terminal instructions so developers can proceed immediately to connecting `MaterialApp`.
+- **Clean Flutter 3.27+ `l10n.yaml` Generation**:
+  - Removed obsolete `synthetic-package` option from generated `l10n.yaml` files to avoid deprecation warnings on modern Flutter SDKs.
+- **`AppStrings` Architecture Documentation & Scaffold**:
+  - Scaffolds `lib/core/localization/app_strings.dart` with in-file architectural documentation and usage examples.
+  - Added dedicated documentation in `README.md` explaining how `AppStrings` centralizes domain/repository failure messages without `BuildContext`, and clarifying that its usage is completely optional.
+
 ## 1.1.0
 
 ### Production Hardening & Compiler Precision

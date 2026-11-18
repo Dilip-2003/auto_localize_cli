@@ -33,7 +33,7 @@ flutter:
     });
 
     test('scaffolds all localization files and updates pubspec.yaml', () async {
-      final runner = InitRunner(projectDir: tempDir);
+      final runner = InitRunner(projectDir: tempDir, autoRunFlutter: false);
       await runner.run();
 
       // Check pubspec.yaml updates

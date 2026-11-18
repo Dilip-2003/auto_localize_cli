@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:auto_localize_cli/auto_localize_cli.dart';
 
-const String packageVersion = '1.1.0';
+const String packageVersion = '1.1.1';
 
 class InitCommand extends Command<void> {
   @override

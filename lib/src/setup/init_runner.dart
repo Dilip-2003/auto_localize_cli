@@ -11,10 +11,14 @@ class InitRunner {
   /// The default locale to scaffold in l10n.yaml and ARB catalogs (e.g. "en", "ru", "es").
   final String defaultLocale;
 
-  /// Creates a new [InitRunner] for [projectDir] and [defaultLocale].
+  /// Whether to automatically run `flutter pub get` and `flutter gen-l10n`.
+  final bool autoRunFlutter;
+
+  /// Creates a new [InitRunner] for [projectDir], [defaultLocale], and [autoRunFlutter].
   InitRunner({
     Directory? projectDir,
     this.defaultLocale = 'en',
+    this.autoRunFlutter = true,
   }) : projectDir = projectDir ?? Directory.current;
 
   /// Runs the onboarding & scaffolding process.
@@ -47,14 +51,18 @@ class InitRunner {
         '📝 Creating core string class (lib/core/localization/app_strings.dart)...');
     await _createAppStrings();
 
+    // Automatically run flutter pub get & flutter gen-l10n so the project compiles immediately
+    if (autoRunFlutter) {
+      await _runFlutterSetup();
+    }
+
     stdout.writeln('''
 ======================================================================
 🎉 AutoLocalize initialized successfully!
 ======================================================================
 
 Next Steps:
-1. Run `flutter pub get` to fetch localization dependencies.
-2. In your `main.dart`, configure your MaterialApp with:
+1. In your `main.dart`, configure your MaterialApp with:
 
    import 'package:$packageName/core/localization/localization_helper.dart';
 
@@ -65,7 +73,7 @@ Next Steps:
      ...
    )
 
-3. Add hardcoded UI strings or core errors, then run:
+2. Add hardcoded UI strings or core errors, then run:
    dart run auto_localize_cli extract
 ======================================================================
 ''');
@@ -121,7 +129,6 @@ Next Steps:
 template-arb-file: app_$defaultLocale.arb
 output-localization-file: app_localizations.dart
 output-dir: lib/l10n
-synthetic-package: false
 ''';
       await l10nFile.writeAsString(content);
     }
@@ -250,12 +257,73 @@ AppLocalizations get l10n {
     final appStringsFile =
         File(p.join(localizationDir.path, 'app_strings.dart'));
     if (!await appStringsFile.exists()) {
-      const content = '''/// Central class for application strings and messages.
+      const content =
+          '''/// Centralized application strings, error messages, and business constants.
+///
+/// **Why use AppStrings?**
+/// In Clean Architecture, BLoC, or Repository layers where BuildContext is not available,
+/// you can define error constants here instead of hardcoding raw strings.
+///
+/// **How does auto_localize_cli work with this class?**
+/// When you define static const strings here and run `auto_localize_cli extract`,
+/// the CLI automatically converts them into context-less getters backed by `l10n`.
+///
+/// Example:
+/// ```dart
+/// // 1. Define your constant:
+/// static const String networkError = 'Please check your internet connection';
+///
+/// // 2. Run: auto_localize_cli extract
+///
+/// // 3. The CLI rewrites it to:
+/// static String get networkError => l10n.pleaseCheckYourInternetConnection;
+/// ```
 class AppStrings {
   AppStrings._();
 }
 ''';
       await appStringsFile.writeAsString(content);
+    }
+  }
+
+  /// Automatically executes `flutter pub get` and `flutter gen-l10n` so dependencies
+  /// and generated localization classes are created immediately without manual steps.
+  Future<void> _runFlutterSetup() async {
+    final executable = Platform.isWindows ? 'flutter.bat' : 'flutter';
+
+    stdout.writeln('📦 Running `flutter pub get`...');
+    try {
+      final pubResult = await Process.run(
+        executable,
+        ['pub', 'get'],
+        workingDirectory: projectDir.path,
+        runInShell: true,
+      ).timeout(const Duration(seconds: 20));
+      if (pubResult.exitCode != 0) {
+        stdout.writeln('Note: Could not run `flutter pub get` automatically.');
+      }
+    } catch (_) {
+      stdout.writeln('Note: Could not run `flutter pub get` automatically.');
+    }
+
+    stdout.writeln('⚡ Running `flutter gen-l10n`...');
+    try {
+      final genResult = await Process.run(
+        executable,
+        ['gen-l10n'],
+        workingDirectory: projectDir.path,
+        runInShell: true,
+      ).timeout(const Duration(seconds: 15));
+      if (genResult.exitCode == 0) {
+        stdout.writeln(
+            '✅ Generated lib/l10n/app_localizations.dart successfully!');
+      } else {
+        stdout.writeln(
+            'Note: Could not run `flutter gen-l10n` automatically. Please run `flutter gen-l10n` in your terminal.');
+      }
+    } catch (_) {
+      stdout.writeln(
+          'Note: Could not run `flutter gen-l10n` automatically. Please run `flutter gen-l10n` in your terminal.');
     }
   }
 }

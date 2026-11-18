@@ -67,7 +67,8 @@ auto_localize_cli init
 - Generates standard `l10n.yaml` settings.
 - Creates `lib/l10n/app_en.arb` template.
 - Scaffolds `lib/core/localization/localization_helper.dart` (providing `globalNavigatorKey`, context-less `l10n`, and reactive `changeAppLocale`).
-- Scaffolds `lib/core/localization/app_strings.dart` for non-UI error messages and business strings.
+- Scaffolds `lib/core/localization/app_strings.dart` (an optional central catalog for non-UI domain errors, failure messages, and business constants).
+- **Automatically runs `flutter pub get` & `flutter gen-l10n`** so all localization classes are generated immediately with zero IDE errors.
 
 ---
 
@@ -187,6 +188,55 @@ class WelcomeBanner extends StatelessWidget {
    ```dart
    changeAppLocale(const Locale('es'));
    ```
+
+---
+
+## 🏛️ Architectural Rule: UI Strings vs Business Logic Strings
+
+`auto_localize_cli` enforces a clean, robust separation of concerns to guarantee zero broken builds across your codebase:
+
+| Layer | Examples | How It Works |
+|---|---|---|
+| **🎨 UI Layer (Widgets)** | `Text('Hello')`, `title: 'Welcome'`, `showSnackBar('Saved')` | **Automatically extracted.** The AST visitor scans the widget tree bottom-up, extracts hardcoded literals into `.arb`, removes parent `const` keywords, and rewrites calls to `l10n.<key>`. |
+| **⚙️ Business & Service Layers** | Custom domain models (`OemConfig(step1Highlight: '...')`), Repositories, BLoCs | **Centralized via `AppStrings`.** Hardcoded strings in services or custom classes are safely ignored by the CLI to prevent broken builds or compile errors. |
+
+### Why does the CLI safely ignore hardcoded strings in services & custom models?
+1. **Zero Broken Builds:** Custom service classes and domain models (e.g. `OemConfig(step1Highlight: '...')` or `enum Trigger { power(...) }`) use custom constructor parameters or compile-time constants. Guessing arbitrary parameter names in non-UI classes can corrupt business logic or break Dart's `const` rules.
+2. **Clean Separation of Concerns:** In Clean Architecture, services should communicate with platform channels or data sources—not store hardcoded English copy directly inside business logic.
+
+### How to localize non-UI strings cleanly with `AppStrings`:
+Whenever you have instructional copy, error messages, or domain constants in non-UI code, simply define them in `lib/core/localization/app_strings.dart`:
+
+```dart
+class AppStrings {
+  AppStrings._();
+
+  static const String autostartHint = 'Open Settings › Apps › Kokua';
+  static const String networkTimeout = 'Connection timed out. Please check your internet.';
+}
+```
+
+When you run `auto_localize_cli extract`, the CLI automatically detects `AppStrings` (and classes ending in `*Strings`, `*Errors`, `*Messages`, or `*Constants`), extracts the strings into your template `.arb` catalog, and rewrites them into live, context-less getters:
+
+```dart
+import 'localization_helper.dart';
+
+class AppStrings {
+  AppStrings._();
+
+  static String get autostartHint => l10n.openSettingsAppsKokua;
+  static String get networkTimeout => l10n.connectionTimedOutPlease;
+}
+```
+
+Now your services, repositories, or BLoCs can access localized text cleanly without needing `BuildContext`:
+```dart
+// Inside your service or domain model:
+OemAutostartConfig(step1Hint: AppStrings.autostartHint);
+
+// Inside your API repository or BLoC:
+throw ServerException(AppStrings.networkTimeout);
+```
 
 ---
 
@@ -339,7 +389,54 @@ Text(l10n.welcomeBackNameUnreadMessages(name, items.length))
 }
 ```
 
-### 5. Smart Non-UI Class & Parameter Filtering
+### 5. Centralized Business & Error Strings (`AppStrings`)
+
+In Flutter apps following Clean Architecture (BLoC, Cubits, Repositories, Domain models), error messages and failure descriptions (e.g. `ServerException`, `AuthFailure`, `ValidationException`) are often generated in non-UI data layers where `BuildContext` is completely unavailable.
+
+`auto_localize_cli` scaffolds `lib/core/localization/app_strings.dart` as an optional, clean home for these constants:
+
+#### How It Works:
+1. **Define raw constants naturally** in `lib/core/localization/app_strings.dart`:
+```dart
+class AppStrings {
+  AppStrings._();
+
+  static const String networkTimeout = 'Connection timed out. Please check your internet.';
+  static const String invalidCredentials = 'The email or password you entered is incorrect.';
+  static const String paymentFailed = 'Payment could not be processed.';
+}
+```
+
+2. **Run extraction**:
+```bash
+auto_localize_cli extract
+```
+
+3. **Automatic transformation**:  
+The CLI extracts each string into your template `.arb` catalog and rewrites the constants into clean, context-less getters backed by `l10n`:
+```dart
+import 'localization_helper.dart';
+
+class AppStrings {
+  AppStrings._();
+
+  static String get networkTimeout => l10n.connectionTimedOutPlease;
+  static String get invalidCredentials => l10n.theEmailOrPassword;
+  static String get paymentFailed => l10n.paymentCouldNotBeProcessed;
+}
+```
+
+4. **Use anywhere without `BuildContext`**:
+```dart
+// In a repository, BLoC, or interceptor:
+throw ServerException(AppStrings.networkTimeout);
+```
+
+> **Note:** Using `AppStrings` is **100% optional**. You can also access `l10n.<key>` directly in your repositories or controllers (`throw ServerException(l10n.networkTimeout);`). `AppStrings` is provided for teams that prefer keeping all domain and error messages centralized.
+
+---
+
+### 6. Smart Non-UI Class & Parameter Filtering
 The CLI extracts from:
 - Positional argument of: `Text`, `SelectableText`, `Tooltip`, `showToast`, `showSnackBar`, `showDialog`, `showAlert`.
 - 21 named UI parameters: `labelText`, `hintText`, `helperText`, `errorText`, `prefixText`, `suffixText`, `counterText`, `tooltip`, `semanticsLabel`, `title`, `subtitle`, `message`, `text`, `label`, `header`, `content`, `confirmText`, `cancelText`, `buttonText`, `action`, `prompt`.
